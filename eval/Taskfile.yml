@@ -1,0 +1,24 @@
+version: '3'
+
+tasks:
+  gencorpus:
+    desc: Regenerate corpus/corpus.json and corpus/people.csv (deterministic)
+    cmds:
+      - go run ./cmd/gencorpus -out corpus
+
+  eval:
+    desc: Run the leak/restore eval against the gateway built from ../cmd/outworld
+    cmds:
+      - go run ./cmd/outworld-eval {{.CLI_ARGS}}
+
+  eval:selftest:
+    desc: Run the full pipeline against the bundled fake gateway (oracle masking, should pass)
+    cmds:
+      - go build -o results/.bin/fake-outworld ./cmd/fake-outworld
+      - FAKE_OUTWORLD_MODE=oracle FAKE_OUTWORLD_CORPUS={{.TASKFILE_DIR}}/corpus/corpus.json go run ./cmd/outworld-eval --gateway-bin results/.bin/fake-outworld {{.CLI_ARGS}}
+
+  test:
+    desc: Vet and unit-test the harness
+    cmds:
+      - go vet ./...
+      - go test ./...

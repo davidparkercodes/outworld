@@ -1,0 +1,7 @@
+eval
+*.vault
+*.vault.lock
+*.key
+.env
+outworld.yaml
+.work

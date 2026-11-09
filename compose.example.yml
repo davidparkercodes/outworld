@@ -1,0 +1,33 @@
+services:
+  outworld:
+    build: .
+    image: outworld:local
+    ports:
+      - "127.0.0.1:8787:8787"
+    environment:
+      OUTWORLD_CONFIG: /config/outworld.yaml
+      OUTWORLD_LISTEN: 0.0.0.0:8787
+      OUTWORLD_VAULT_KEY: ${OUTWORLD_VAULT_KEY:?generate one with: outworld keygen}
+      OUTWORLD_TOKEN: ${OUTWORLD_TOKEN:-}
+      CLOUD_API_KEY: ${CLOUD_API_KEY:-}
+    volumes:
+      - ./outworld.yaml:/config/outworld.yaml:ro
+      - ./people.csv:/config/people.csv:ro
+      - outworld-data:/data
+    read_only: true
+    mem_limit: 256m
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/outworld", "health"]
+      interval: 30s
+      timeout: 5s
+
+  gliner:
+    profiles: ["ner"]
+    build: ./detectors/gliner
+    image: outworld-gliner:local
+    mem_limit: 3g
+    restart: unless-stopped
+
+volumes:
+  outworld-data:

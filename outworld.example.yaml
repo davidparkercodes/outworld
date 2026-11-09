@@ -1,0 +1,60 @@
+listen: 127.0.0.1:8787
+
+vault:
+  path: ./outworld.vault
+  key_env: OUTWORLD_VAULT_KEY
+  # key_file: ./outworld.key
+
+upstreams:
+  cloud:
+    base_url: https://api.example.com/v1
+    api_key_env: CLOUD_API_KEY
+  local:
+    base_url: http://127.0.0.1:11434/v1
+    # model: llama3.1:8b
+  # tee:
+  #   base_url: https://confidential.example.net/v1
+  #   api_key_env: TEE_API_KEY
+
+policy:
+  default_route: masked
+  masked_upstream: cloud
+  local_upstream: local
+  # passthrough_upstream: tee
+  date_shift: true
+  date_shift_scope: global
+  date_order: mdy
+  dictionary: ./people.csv
+  allow_route_header: true
+  allow_scope_header: false
+  allow_images: false
+  entities:
+    person: mask
+    email: mask
+    phone: mask
+    address: mask
+    date: shift
+    org: keep
+    location: keep
+    url: keep
+    ip: mask
+    secret: strip
+    gov_id: strip
+    financial: strip
+  rules:
+    - {name: health-and-legal, match_any: ["diagnosis", "lawsuit"], route: local}
+    # - {name: no-cards, entities: ["financial"], route: block}
+    # - {name: confidential, match_regex: ["(?i)attorney[- ]client"], route: passthrough, upstream: tee}
+
+# ner:
+#   url: http://127.0.0.1:8790
+#   timeout: 10s
+#   threshold: 0.5
+#   optional: false
+
+auth:
+  token_env: OUTWORLD_TOKEN
+
+log:
+  level: info
+  format: json

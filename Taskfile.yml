@@ -1,0 +1,40 @@
+version: '3'
+
+tasks:
+  build:
+    cmds:
+      - go build -trimpath -o bin/outworld ./cmd/outworld
+
+  test:
+    cmds:
+      - go test ./...
+
+  race:
+    cmds:
+      - go test -race ./...
+
+  lint:
+    cmds:
+      - test -z "$(gofmt -l cmd internal pkg)"
+      - go vet ./...
+
+  check:
+    cmds:
+      - task: lint
+      - task: test
+
+  serve:
+    cmds:
+      - go run ./cmd/outworld serve --config {{.CONFIG | default "outworld.yaml"}}
+
+  keygen:
+    cmds:
+      - go run ./cmd/outworld keygen
+
+  docker:
+    cmds:
+      - docker build -t outworld:local .
+
+  docker:gliner:
+    cmds:
+      - docker build -t outworld-gliner:local detectors/gliner

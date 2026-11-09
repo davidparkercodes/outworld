@@ -1,0 +1,14 @@
+/outworld
+/bin/
+/dist/
+*.vault
+*.vault.lock
+*.vault.tmp
+*.key
+.env
+/outworld.yaml
+/people.csv
+__pycache__/
+*.pyc
+.venv/
+/.work/
