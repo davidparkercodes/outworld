@@ -153,6 +153,7 @@ Defaults: people, emails, phones, addresses and IPs are masked; dates shifted; o
 - Realistic, never `<PERSON_1>`: `John Smith` becomes `Kasimir Sandoval`, `John` alone becomes `Kasimir`, `JOHN SMITH` becomes `KASIMIR SANDOVAL`, `john.smith` in a URL becomes `kasimir.sandoval`, `John's` keeps its `'s`.
 - Deterministic per vault (HMAC of a vault secret), consistent across requests and a whole corpus, collision-free, and never equal to any real value the vault or your dictionary knows.
 - Shape-preserving: emails stay valid on reserved `example.com/.org/.net` domains, phones use the fictional `555-01xx` range with the original formatting, addresses keep number length, street suffix, unit and state (addresses outside the US style keep their street word, layout and postal code shape), phones in national formats keep the leading `0` or country code and the grouping, spoken numbers stay digit words, IPs use documentation ranges.
+- Locale-aware addresses: an address that reads as French, Spanish, Portuguese, Italian, German (including Austrian and Swiss forms), Dutch or UK gets a stand-in from the same country, with street names in that language's grammar, a real mid-sized town and a postal code that fits it. `12 rue de Rivoli, 75001 Paris` becomes something like `63 rue de Montreuil, 47000 Agen`, and `Lindenstraße 8, 50674 Köln` something like `Bergstraße 5, 35060 Marburg`. US-style addresses are generated exactly as before.
 - Name lists are bundled and generated for this project; once exhausted, a syllable generator takes over.
 - Gender-consistent: first names are replaced with first names of the same likely gender (a bundled list of common first names; unknown names get gender-neutral surrogates), so `Priya ... her` stays coherent. A dictionary `gender` column overrides the guess.
 - One identity per person: every alias of a dictionary entry maps onto parts of the same surrogate. `Marcus Delaney` becomes `Ezra Sandoval`, `Delaney` becomes `Sandoval`, and the nickname `Marc` becomes a nickname derived from `Ezra` (for example `Ez`), so the model sees one person.
@@ -163,7 +164,7 @@ Defaults: people, emails, phones, addresses and IPs are masked; dates shifted; o
 Detection is layered, and each layer can only add findings:
 
 1. **Patterns.** Emails, phones, addresses, IDs, cards, keys, codes, links and dates. No model, microseconds.
-2. **Built-in name detector.** Finds people without a model: a known first name followed by a surname (`John Smith`, `JOHN SMITH`), a known first name on its own, names after labels (`Emergency contact: May Lindenbrook`, `ONCALL: ...`, `From: ... <email>`), after relationship words (`my sister Ottoline`), as chat speakers (`[09:14] ravi:`), and in profile URLs (`/people/abelard-ashdown`). It also handles particles (`Anna van der Berg`), surname-first forms (`SMITH, John`), initials (`J. Smith`, `John S.`), accents (`José` and `Jose` are the same name) and names inside `first.last@` addresses. It uses public-domain name tables (about 9,400 first names and 32,800 surnames from US government data, Wikidata and per-country popular-name lists, see `internal/namedata`). Coverage is best for names written in Latin script and common in Europe and the Americas; it will still miss many others, and nicknames in particular. Names that are also ordinary words (`Will`, `May`, `Grant`, `Faith`) only count in name context. Common technology names (`Claude`, `Ruby`, `Julia`, `Jenkins`) are never treated as people. Turn the layer off with `policy.name_heuristics: false`.
+2. **Built-in name detector.** Finds people without a model: a known first name followed by a surname (`John Smith`, `JOHN SMITH`), a known first name on its own, names after labels (`Emergency contact: May Lindenbrook`, `ONCALL: ...`, `From: ... <email>`), after relationship words (`my sister Ottoline`), as chat speakers (`[09:14] ravi:`), and in profile URLs (`/people/abelard-ashdown`). It also handles particles (`Anna van der Berg`), surname-first forms (`SMITH, John`), initials (`J. Smith`, `John S.`), accents (`José` and `Jose` are the same name) and names inside `first.last@` addresses. Family-name-first names are recognized for common Vietnamese, Chinese and Korean family names (`Nguyen Van An`, `Zhang Wei`, `Kim Min-jun`); family names that are also ordinary words (`Le`, `Do`, `He`, `Park`, `Sun`, `Kim`, `Lee`) need a distinctive given name, a middle marker such as `Van` or `Thi`, or name context, so `Ma Long` on its own is still missed. Code handles count as people where the position makes them a username: `TODO(mwilliams)` and `FIXME(kchen)`, the user prefix of a branch (`git checkout -b jsmith/retry-logic`, `origin/kchen/fix`), `@mwilliams` mentions, `/home/jdoe/` and `/Users/jdoe/` path segments, and git trailers (`Reviewed-by: kchen`). Branch prefixes and mentions need a name-table match (an initial plus a known surname, or a known first name), so `feature/login`, `@types/node` and `@param` are left alone, and service accounts such as `root`, `ubuntu` and `runner` are skipped; a handle with no recognizable name in it (`@zorgblat`) is missed outside home directories and trailers. A bundled list of a few hundred well-known organizations whose names look like a person (`Morgan Stanley`, `Goldman Sachs`, `Johnson & Johnson`, `Ralph Lauren`) is treated as `org`, and so is a name followed by a corporate word (`Okafor Partners`, `Maria Garcia Holdings`, `Becker & Sons`). A real person who shares one of those names (`Edward Jones`, `Raymond James`) is only masked from your dictionary, after a title (`Mr. Edward Jones`), after a relationship word, in a sign-off, or after a label such as `Contact:`. It uses public-domain name tables (about 9,400 first names and 32,800 surnames from US government data, Wikidata and per-country popular-name lists, see `internal/namedata`). Coverage is best for names written in Latin script and common in Europe and the Americas; it will still miss many others, and nicknames in particular. Names that are also ordinary words (`Will`, `May`, `Grant`, `Faith`) only count in name context. Common technology names (`Claude`, `Ruby`, `Julia`, `Jenkins`) are never treated as people. Turn the layer off with `policy.name_heuristics: false`.
 3. **Your dictionary.** The people, orgs and places you know. The most precise layer.
 4. **Names learned within a request.** Once any layer finds `Hope Valdane` anywhere in a request, every message in that request is re-checked for her other forms: `hope` in a chat line, `HOPE VALDANE`, `hope-valdane`, `hvaldane`.
 5. **NER sidecar (optional).** A model for names, orgs and places nothing else caught. Two are bundled: [GLiNER](detectors/gliner/README.md) and [OpenAI Privacy Filter](detectors/privacy-filter/README.md). ALL CAPS runs are sent to the sidecar in title case, because NER models miss shouted names.
@@ -317,29 +318,29 @@ There are three corpora, and the difference between them matters more than any s
 
 - **Tuned**: 152 items. The detectors were developed against it. Its numbers show what the detectors do on forms they were built for, and nothing more.
 - **Development**: 85 items written without access to the detector code. After the first run on it, general gaps it exposed were fixed, so it is no longer blind.
-- **Blind**: 120 items, 160 invented people, about 33,000 words, written without access to the detector code. No detector was changed after looking at its results. This is the number to believe.
+- **Blind**: 120 items, 160 invented people, about 33,000 words, written without access to the detector code. No detector was changed after looking at its results. The later additions (code handles, the company list, family-name-first names) came from hand-written probes in an outside review, not from this corpus. This is the number to believe.
 
 Leak rate through the OpenAI API (the Anthropic API, streaming, and repeat runs with a fresh vault all land within about two points of these):
 
 | Detectors | Tuned | Development | Blind |
 |---|---|---|---|
-| Patterns and built-in names only | 0.3% | 14.3% | 17.3% |
-| Plus your dictionary (about half the people listed) | 0.2% | 10.0% | 11.4% |
-| Plus GLiNER sidecar, no dictionary | under 0.1% | 4.5% | 11.4% |
-| Dictionary and GLiNER | under 0.1% | 3.5% | 9.2% |
-| Plus Privacy Filter sidecar, no dictionary | 0.1% | 4.2% | 9.8% |
-| Dictionary and Privacy Filter | 0.1% | 3.5% | 8.7% |
+| Patterns and built-in names only | 0.3% | 13.5% | 16.1% |
+| Plus your dictionary (about half the people listed) | under 0.1% | 9.5% | 11.9% |
+| Plus GLiNER sidecar, no dictionary | 0.1% | 4.3% | 11.0% |
+| Dictionary and GLiNER | 0% | 3.5% | 9.3% |
+| Plus Privacy Filter sidecar, no dictionary | 0.1% | 4.2% | 9.7% |
+| Dictionary and Privacy Filter | 0.1% | 3.5% | 8.6% |
 
-On the blind corpus, by kind of value (dictionary and GLiNER): names 5%, emails 0%, dates 7%, phones 9%, addresses 13%, secrets 32%, bank and card details 35%, government IDs 54%. The names that get through are mostly nicknames, first names that are not in the tables, and handles. The identifiers that get through are mostly national ID formats from countries the patterns do not cover and passwords that appear without a label.
+On the blind corpus, by kind of value (dictionary and GLiNER): names 5%, emails 0%, dates 7%, phones 9%, addresses 11%, secrets 32%, bank and card details 35%, government IDs 54%. The names that get through are mostly nicknames, first names that are not in the tables, and handles. The identifiers that get through are mostly national ID formats from countries the patterns do not cover and passwords that appear without a label.
 
 The cost side, on the blind corpus:
 
 | Detectors | Over-masking | Blocked | Added latency, median |
 |---|---|---|---|
-| Patterns and built-in names only | 23% | 7% | 20 to 35 ms |
-| Plus your dictionary | 25% | 7% | 20 to 35 ms |
-| Dictionary and GLiNER (8 CPU threads) | 26% | 6% | 2.6 s |
-| Dictionary and Privacy Filter (8 CPU threads) | 31% | 3% | 0.5 s |
+| Patterns and built-in names only | 21% | 8% | 30 to 55 ms |
+| Plus your dictionary | 22% | 8% | 30 to 55 ms |
+| Dictionary and GLiNER (8 CPU threads) | 26% | 3% | 2.4 s |
+| Dictionary and Privacy Filter (8 CPU threads) | 29% | 3% | 0.5 s |
 
 On the tuned corpus, over-masking without a sidecar is 0% and nothing is blocked. The blind corpus is deliberately full of things that look sensitive and are not (companies named after people, cities that are also first names, commit hashes, version strings), which is why its over-masking is high. Over-masking is reversible: the answer is still translated back, but the model loses what it knew about the real company or place.
 
@@ -347,7 +348,7 @@ What to take from this:
 
 - Outworld removes most of what identifies people in ordinary prompts. It does not remove all of it, and on text it has never seen it misses roughly one sensitive value in ten even with a dictionary and a model.
 - A dictionary of the people you actually talk about is the cheapest large improvement. A sidecar is the next one.
-- Restore accuracy (answers translated back correctly) is above 99.5% in every configuration.
+- Restore accuracy (answers translated back correctly) is about 99.5% or higher in every configuration.
 - These are synthetic prompts against a fake upstream. Sidecar latencies were measured on a shared, busy CPU host with no GPU and vary a lot with prompt length; the 95th percentile on long agent transcripts is tens of seconds for GLiNER.
 
 Reproduce any cell with `go run ./cmd/outworld-eval --corpus corpus/holdout2.json --people corpus/holdout2-people.csv --configs regex-only,dictionary` from `eval/`. If you change a detector after reading the blind corpus results, it stops being blind; write a new one.
@@ -361,7 +362,7 @@ What it protects against:
 - The provider (and its logs, retention, training pipelines, breaches) seeing the names, contact details, addresses, exact dates, account numbers, IDs and secrets that Outworld detects.
 - Accidental leaks of values the vault already knows: every outbound payload is re-scanned for known real values and for unmasked detector hits. Anything found is masked in place with its existing surrogate (or a new one) and the payload is re-scanned; a known first name followed by a capitalized word is treated as a full name. Only what still cannot be transformed (for example a value in a JSON key or message `name`) blocks the request.
 - Mentions split across messages: every text in a request is detected first, so a name that is only recognizable in a later message is also masked in earlier ones.
-- Credentials and one-time codes reaching any cloud model at all (stripped, never restored).
+- Credentials and one-time codes that Outworld recognizes reaching any cloud model at all (stripped, never restored). Recognition is far from complete here: on the blind corpus about a third of secrets got through, mostly passwords and tokens with no label next to them. Do not rely on Outworld as a secret scanner.
 
 What it does **not** do:
 
@@ -370,7 +371,7 @@ What it does **not** do:
 - **The provider still sees the content.** Your medical question is still a medical question about *someone*. If the substance itself is what must not leave, route it `local` or to a `passthrough` confidential-compute endpoint, or `block` it. That is what routing rules are for.
 - **Model output is untrusted.** Rehydration translates every surrogate and every date in the answer, including dates the model made up. Surrogate phone numbers are recognized in any formatting the model chooses (dashes, dots, spaces, parentheses, `+1`, digits only). Invented people that look like surrogates are flagged in `X-Outworld-Unknown-Names`, not removed.
 - **The vault is the crown jewels.** It maps every surrogate back to a real value. It is encrypted at rest (AES-256-GCM with an authenticated, append-only record log), and Outworld refuses to run without a key. Protect the key like a password-manager master key. Anyone with both the vault and the key can reverse everything.
-- **Not covered:** images, audio and files (refused on the masked route by default), lone initials such as `LH` (left as-is), month-year only dates like "March 2024" (not shifted), metadata outside the message text (Outworld drops the `user` field and Anthropic `metadata.user_id` but does not rewrite `tools` schemas or system-level metadata your client adds), provider-signed thinking blocks and block types Outworld does not know (passed through unchanged), and anything an agent sends around the gateway on its own.
+- **Not covered:** images, audio and files (refused on the masked route by default), lone initials such as `LH` (left as-is), handles and usernames outside the recognized code positions (a bare `kchen` in prose is only masked once the same request has shown it in one of them), people who share a name with a listed company unless your dictionary has them, month-year only dates like "March 2024" (not shifted), metadata outside the message text (Outworld drops the `user` field and Anthropic `metadata.user_id` but does not rewrite `tools` schemas or system-level metadata your client adds), provider-signed thinking blocks and block types Outworld does not know (passed through unchanged), and anything an agent sends around the gateway on its own.
 - Outworld logs never include real values or raw prompts: only routes, counts per entity type and timings.
 
 When in doubt: use `local` for anything whose substance is sensitive, `masked` for everyday personal data where names and contact details are the risk, and `passthrough` to a TEE endpoint when you need a big model on raw data and trust that attestation.

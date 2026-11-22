@@ -292,6 +292,14 @@ func (g *Generator) Address(real string, attempt int) string {
 	if m := poBoxRE.FindStringSubmatch(real); m != nil {
 		return m[1] + r.digits(len(m[2]), true)
 	}
+	if strings.ContainsAny(real, "0123456789") {
+		if loc := addrLocaleOf(real); loc != nil {
+			if out := g.localAddress(r, real, loc); out != real {
+				return out
+			}
+			r = g.stream("address", real, attempt)
+		}
+	}
 	num := addrNumRE.FindString(real)
 	sm := addrSuffixRE.FindStringSubmatchIndex(real)
 	if strings.ContainsAny(real, "0123456789") && (num == "" || sm == nil || addrForeignRE.MatchString(real)) {

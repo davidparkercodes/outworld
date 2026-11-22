@@ -18,8 +18,18 @@ func learnableName(sp entity.Span) (string, bool) {
 		return "", false
 	}
 	text := sp.Text
-	if sp.Source == "names:slug" {
+	switch sp.Source {
+	case "names:slug":
 		text = strings.NewReplacer("-", " ", ".", " ", "_", " ").Replace(text)
+	case "names:handle":
+		if _, _, _, split := detect.SplitHandle(text); split {
+			return "", false
+		}
+		text = strings.NewReplacer(".", " ", "_", " ").Replace(text)
+	case "names:family-first":
+		if sp.Canonical != "" {
+			text = sp.Canonical
+		}
 	}
 	var words []string
 	for _, w := range strings.Fields(text) {

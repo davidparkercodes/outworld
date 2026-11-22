@@ -218,8 +218,26 @@ func (s *Session) NewStreamRehydrator(jsonEscaped bool) *StreamRehydrator {
 
 func (r *StreamRehydrator) Push(chunk string) string {
 	r.buf += chunk
-	cut := r.avoidStraddle(r.safeCut())
-	return r.emit(cut)
+	held := partialRuneTail(r.buf)
+	tail := r.buf[len(r.buf)-held:]
+	r.buf = r.buf[:len(r.buf)-held]
+	out := r.emit(r.avoidStraddle(r.safeCut()))
+	r.buf += tail
+	return out
+}
+
+func partialRuneTail(s string) int {
+	for n := 1; n <= 3 && n <= len(s); n++ {
+		c := s[len(s)-n]
+		if !utf8.RuneStart(c) {
+			continue
+		}
+		if c >= 0xC0 && !utf8.FullRuneInString(s[len(s)-n:]) {
+			return n
+		}
+		return 0
+	}
+	return 0
 }
 
 func (r *StreamRehydrator) Flush() string { return r.emit(len(r.buf)) }

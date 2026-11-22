@@ -7,6 +7,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/davidparkercodes/outworld/internal/textutil"
+	"github.com/davidparkercodes/outworld/pkg/detect"
 	"github.com/davidparkercodes/outworld/pkg/entity"
 	"github.com/davidparkercodes/outworld/pkg/surrogate"
 )
@@ -52,6 +53,11 @@ func (e *Engine) personSurrogate(sp entity.Span, avoid func(string) bool) (strin
 	}
 	if len(toks) == 1 && len(canon) >= 2 {
 		if sur, ok, err := e.joinedSurrogate(text, canon, gender, avoid); ok || err != nil {
+			return sur, err
+		}
+	}
+	if len(toks) == 1 && len(canon) == 0 {
+		if sur, ok, err := e.handleSurrogate(text, sp.Source, avoid); ok || err != nil {
 			return sur, err
 		}
 	}
@@ -217,6 +223,42 @@ func (e *Engine) joinedSurrogate(text string, canon []string, gender string, avo
 			return joined
 		}
 		return fmt.Sprintf("%s%d", joined, i)
+	})
+	if err != nil {
+		return "", true, err
+	}
+	return textutil.MatchCase(text, sur), true, nil
+}
+
+func (e *Engine) handleSurrogate(text, source string, avoid func(string) bool) (string, bool, error) {
+	if sur, ok := e.vault.Get("person.joined", text); ok {
+		return textutil.MatchCase(text, sur), true, nil
+	}
+	if source != "names:handle" {
+		return "", false, nil
+	}
+	given, family, digits, ok := detect.SplitHandle(text)
+	if !ok {
+		return "", false, nil
+	}
+	f, err := e.familySurrogate(titleWord(family), avoid)
+	if err != nil {
+		return "", true, err
+	}
+	prefix := given
+	if utf8.RuneCountInString(given) > 1 {
+		g, err := e.givenSurrogate(titleWord(given), surrogate.GenderOf(given), avoid)
+		if err != nil {
+			return "", true, err
+		}
+		prefix = strings.ToLower(g)
+	}
+	joined := prefix + strings.ToLower(f)
+	sur, err := e.vault.Assign("person.joined", text, func(i int) string {
+		if i == 0 {
+			return joined + digits
+		}
+		return fmt.Sprintf("%s%d%s", joined, i, digits)
 	})
 	if err != nil {
 		return "", true, err

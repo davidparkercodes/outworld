@@ -182,6 +182,7 @@ func (NameDetector) Detect(_ context.Context, text string) ([]entity.Span, error
 		}
 		out = append(out, entity.Span{Start: s, End: e, Type: entity.Person, Label: "person", Text: text[s:e], Source: "names:" + src, Priority: prio, Score: 1})
 	}
+	comps := companyMatches(text)
 	var toks []nameTok
 	for _, m := range wordRE.FindAllStringIndex(text, -1) {
 		w := text[m[0]:m[1]]
@@ -190,6 +191,11 @@ func (NameDetector) Detect(_ context.Context, text string) ([]entity.Span, error
 	for i := 0; i < len(toks); i++ {
 		t := toks[i]
 		if embedded(text, t.start, t.end) {
+			continue
+		}
+		if end, n, canonical := familyFirst(text, toks, i); n > 0 {
+			out = append(out, entity.Span{Start: t.start, End: end, Type: entity.Person, Label: "person", Text: text[t.start:end], Source: "names:family-first", Priority: 30, Score: 1, Canonical: canonical})
+			i += n
 			continue
 		}
 		g, ok := givenOf(t.text)
@@ -294,7 +300,7 @@ func (NameDetector) Detect(_ context.Context, text string) ([]entity.Span, error
 			}
 		}
 	}
-	out = append(out, labelNames(text)...)
+	out = append(out, labelNames(text, comps)...)
 	for _, m := range initialSurnameRE.FindAllStringSubmatchIndex(text, -1) {
 		if strongSurname(text[m[4]:m[5]]) {
 			emit(m[2], m[3], "initial", 25)
@@ -406,7 +412,8 @@ func (NameDetector) Detect(_ context.Context, text string) ([]entity.Span, error
 			emit(s, e, "slug", 27)
 		}
 	}
-	return out, nil
+	out = append(out, handleSpans(text)...)
+	return guardOrgs(text, out, comps), nil
 }
 
 func particleSurname(text string, toks []nameTok, i int) (int, int) {
@@ -521,7 +528,7 @@ func weakContextOK(text string, s, e int) bool {
 	return speakerColon(strings.TrimLeft(text[e:le], " ")) && strings.TrimSpace(text[ls:s]) == ""
 }
 
-func labelNames(text string) []entity.Span {
+func labelNames(text string, comps []companyMatch) []entity.Span {
 	var out []entity.Span
 	for _, m := range labelRE.FindAllStringSubmatchIndex(text, -1) {
 		label := strings.ToLower(text[m[2]:m[3]])
@@ -574,7 +581,7 @@ func labelNames(text string) []entity.Span {
 			if embedded(text, pos, pos+end) {
 				valid = false
 			}
-			if valid && (known || (strongLabels[label] && len(words) >= 2)) && !(len(words) == 1 && !known) {
+			if valid && (known || (strongLabels[label] && len(words) >= 2)) && !(len(words) == 1 && !known) && (strongLabels[label] || !inCompany(comps, pos, pos+end)) {
 				out = append(out, entity.Span{Start: pos, End: pos + end, Type: entity.Person, Label: "person", Text: seg[:end], Source: "names:label", Priority: 27, Score: 1})
 			}
 			rest := seg[end:]
