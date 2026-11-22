@@ -19,6 +19,7 @@ type streamKey struct {
 
 type streamState struct {
 	sess     *outworld.Session
+	raw      map[streamKey]*strings.Builder
 	rh       map[streamKey]*outworld.StreamRehydrator
 	order    []streamKey
 	template map[string]any
@@ -29,10 +30,33 @@ func (st *streamState) get(k streamKey) *outworld.StreamRehydrator {
 	if !ok {
 		r = st.sess.NewStreamRehydrator(k.field == "arguments")
 		st.rh[k] = r
+		st.raw[k] = &strings.Builder{}
 		st.order = append(st.order, k)
 	}
 	return r
 }
+
+func (st *streamState) push(k streamKey, s string) string {
+	r := st.get(k)
+	st.raw[k].WriteString(s)
+	return r.Push(s)
+}
+
+func (st *streamState) remember() {
+	for _, k := range st.order {
+		raw, out := st.raw[k].String(), st.rh[k].Text()
+		if raw == "" || len(out) >= streamTextCap {
+			continue
+		}
+		if k.field == "arguments" {
+			rememberArguments(st.sess, raw, out)
+		} else {
+			st.sess.Remember(out, raw)
+		}
+	}
+}
+
+const streamTextCap = 1 << 20
 
 func toInt(v any) int {
 	switch t := v.(type) {
@@ -61,7 +85,7 @@ func (st *streamState) process(chunk map[string]any) {
 		}
 		for _, f := range textFields {
 			if s, ok := target[f].(string); ok {
-				target[f] = st.get(streamKey{idx, f, -1}).Push(s)
+				target[f] = st.push(streamKey{idx, f, -1}, s)
 			}
 		}
 		if tcs, ok := target["tool_calls"].([]any); ok {
@@ -75,7 +99,7 @@ func (st *streamState) process(chunk map[string]any) {
 					continue
 				}
 				if args, ok := fn["arguments"].(string); ok {
-					fn["arguments"] = st.get(streamKey{idx, "arguments", toInt(m["index"])}).Push(args)
+					fn["arguments"] = st.push(streamKey{idx, "arguments", toInt(m["index"])}, args)
 				}
 			}
 		}
@@ -181,11 +205,12 @@ func (s *Server) streamRehydrate(w http.ResponseWriter, resp *http.Response, ses
 			fl.Flush()
 		}
 	}
-	st := &streamState{sess: sess, rh: map[streamKey]*outworld.StreamRehydrator{}}
+	st := &streamState{sess: sess, rh: map[streamKey]*outworld.StreamRehydrator{}, raw: map[streamKey]*strings.Builder{}}
 	finish := func() []string {
 		if pc := st.pendingChunk(); pc != nil {
 			io.WriteString(w, "data: "+string(encode(pc))+"\n\n")
 		}
+		st.remember()
 		names := sess.UnknownNames(st.visibleText())
 		if len(names) > 0 {
 			io.WriteString(w, ": outworld unknown_names="+strings.Join(names, ",")+"\n\n")

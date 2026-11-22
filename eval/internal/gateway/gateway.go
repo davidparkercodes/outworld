@@ -24,9 +24,13 @@ type Config struct {
 	UpstreamURL string
 	Dictionary  string
 	NERURL      string
+	API         string
+	Memo        bool
 	DateShift   bool
 	Entities    map[string]string
 }
+
+const APIAnthropic = "anthropic"
 
 func yamlQuote(s string) string { return strconv.Quote(s) }
 
@@ -37,10 +41,18 @@ func (c Config) YAML() string {
 	fmt.Fprintf(&b, "  path: %s\n", yamlQuote(c.VaultPath))
 	b.WriteString("  key_env: OUTWORLD_VAULT_KEY\n")
 	b.WriteString("upstreams:\n")
-	fmt.Fprintf(&b, "  cloud: {base_url: %s, api_key_env: CLOUD_API_KEY}\n", yamlQuote(c.UpstreamURL))
+	if c.API == APIAnthropic {
+		fmt.Fprintf(&b, "  cloud: {base_url: %s, api_key_env: CLOUD_API_KEY, api: anthropic}\n", yamlQuote(c.UpstreamURL))
+	} else {
+		fmt.Fprintf(&b, "  cloud: {base_url: %s, api_key_env: CLOUD_API_KEY}\n", yamlQuote(c.UpstreamURL))
+	}
 	b.WriteString("policy:\n")
 	b.WriteString("  default_route: masked\n")
-	b.WriteString("  masked_upstream: cloud\n")
+	if c.API == APIAnthropic {
+		b.WriteString("  anthropic: {masked_upstream: cloud}\n")
+	} else {
+		b.WriteString("  masked_upstream: cloud\n")
+	}
 	fmt.Fprintf(&b, "  date_shift: %t\n", c.DateShift)
 	if c.Dictionary != "" {
 		fmt.Fprintf(&b, "  dictionary: %s\n", yamlQuote(c.Dictionary))
@@ -58,6 +70,7 @@ func (c Config) YAML() string {
 	if c.NERURL != "" {
 		fmt.Fprintf(&b, "ner: {url: %s, timeout: 120s}\n", yamlQuote(c.NERURL))
 	}
+	fmt.Fprintf(&b, "memo: {enabled: %t}\n", c.Memo)
 	return b.String()
 }
 

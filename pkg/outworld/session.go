@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"unicode/utf8"
 
 	"github.com/davidparkercodes/outworld/internal/textutil"
 	"github.com/davidparkercodes/outworld/pkg/dateshift"
@@ -60,6 +61,10 @@ type Session struct {
 	detected   map[string][]entity.Span
 	avoid      map[string]bool
 	dates      map[string]string
+	learned    *detect.DictionaryDetector
+	learnedSet map[string]bool
+	learnedDic *detect.Dictionary
+	pending    []entity.Span
 }
 
 func (e *Engine) NewSession(scope string) *Session {
@@ -98,8 +103,18 @@ func (s *Session) Err() error {
 
 func (s *Session) SetPriming(on bool) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
+	was := s.priming
 	s.priming = on
+	pending := s.pending
+	if !on {
+		s.pending = nil
+	}
+	s.mu.Unlock()
+	if was && !on {
+		for _, sp := range pending {
+			s.surrogate(sp)
+		}
+	}
 }
 
 func (s *Session) isPriming() bool {
@@ -140,13 +155,19 @@ func (s *Session) detect(ctx context.Context, text string) ([]entity.Span, error
 	}
 	s.mu.Lock()
 	s.detected[text] = spans
+	s.mu.Unlock()
+	s.noteAvoid(text)
+	return spans, nil
+}
+
+func (s *Session) noteAvoid(text string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	for _, t := range textutil.Tokens(text) {
-		if w := text[t.Start:t.End]; textutil.StartsUpper(w) {
-			s.avoid[strings.ToLower(w)] = true
+		if t.End-t.Start >= 3 {
+			s.avoid[strings.ToLower(text[t.Start:t.End])] = true
 		}
 	}
-	s.mu.Unlock()
-	return spans, nil
 }
 
 func (s *Session) avoids(cand string) bool {
@@ -166,19 +187,26 @@ func (s *Session) Mask(ctx context.Context, text string) (string, error) {
 	if strings.TrimSpace(text) == "" {
 		return text, nil
 	}
+	if out, ok := s.memoLookup(text); ok {
+		s.noteAvoid(text)
+		return out, nil
+	}
+	mark := s.memoMark()
 	spans, err := s.detect(ctx, text)
 	if err != nil {
 		return "", err
 	}
+	names := s.learn(spans)
+	spans = append(spans[:len(spans):len(spans)], s.learnedSpans(ctx, text)...)
 	plan := s.e.plan(spans)
 	if s.isPriming() {
+		s.mu.Lock()
 		for _, sp := range plan {
 			if s.e.policy.Action(sp.Type) == entity.Mask {
-				if _, err := s.surrogate(sp); err != nil {
-					return "", err
-				}
+				s.pending = append(s.pending, sp)
 			}
 		}
+		s.mu.Unlock()
 		return text, nil
 	}
 	items := make([]planned, len(plan))
@@ -193,6 +221,7 @@ func (s *Session) Mask(ctx context.Context, text string) (string, error) {
 		found, kept := s.scan(ctx, out, ins)
 		collisions := s.collisions(out, ins, kept)
 		if len(found) == 0 && len(collisions) == 0 {
+			s.memoStore(text, out, names, mark)
 			return out, nil
 		}
 		fix := s.remediable(append(found, collisions...), ins)
@@ -274,21 +303,21 @@ func (s *Session) scan(ctx context.Context, text string, ins []insertion) ([]fin
 	sortInsertions(ins)
 	var found []finding
 	var all []entity.Span
-	for _, d := range s.e.checkers {
-		spans, err := d.Detect(ctx, text)
-		if err != nil {
-			found = append(found, finding{planned: planned{span: entity.Span{Type: "unknown", Start: -1, End: -1}}, source: d.Name() + ":error"})
+	for i, r := range detect.RunAll(ctx, text, s.e.checkers) {
+		if r.Err != nil {
+			found = append(found, finding{planned: planned{span: entity.Span{Type: "unknown", Start: -1, End: -1}}, source: s.e.checkers[i].Name() + ":error"})
 			continue
 		}
-		all = append(all, spans...)
+		all = append(all, r.Spans...)
 	}
+	all = append(all, s.learnedSpans(ctx, text)...)
 	kept := s.e.keptOrgs(all)
 	for _, sp := range all {
 		sp = trimPossessive(sp)
-		if sp.Len() <= 0 || s.e.policy.Action(sp.Type) == entity.Keep || insideKept(kept, sp.Type, sp.Start, sp.End) {
+		if sp.Len() <= 0 || s.e.allowed(sp) || s.e.policy.Action(sp.Type) == entity.Keep || insideKept(kept, sp.Type, sp.Start, sp.End) {
 			continue
 		}
-		if covered(ins, sp.Start, sp.End) || s.isOwnOutput(sp) {
+		if covered(ins, sp.Start, sp.End) || s.isOwnOutput(sp) || wordsCovered(ins, text, sp) {
 			continue
 		}
 		found = append(found, finding{planned: planned{span: sp}, source: sp.Source})
@@ -301,6 +330,9 @@ func (s *Session) scan(ctx context.Context, text string, ins []insertion) ([]fin
 		if t == entity.Person && (!detect.NameUseOK(text, h.Start, h.End) || insideKept(kept, t, h.Start, h.End)) {
 			continue
 		}
+		if len(s.e.allow) > 0 && s.e.allow[textutil.Normalize(text[h.Start:h.End])] {
+			continue
+		}
 		rec := h.Record
 		sp := entity.Span{Start: h.Start, End: h.End, Type: t, Label: string(t), Text: text[h.Start:h.End], Source: "vault", Priority: 60, Score: 1}
 		found = append(found, finding{planned: planned{span: sp, rec: &rec}, source: "vault"})
@@ -311,11 +343,33 @@ func (s *Session) scan(ctx context.Context, text string, ins []insertion) ([]fin
 	return found, kept
 }
 
+func wordsCovered(ins []insertion, text string, sp entity.Span) bool {
+	if sp.Type != entity.Person || len(ins) == 0 {
+		return false
+	}
+	toks := textutil.Tokens(text[sp.Start:sp.End])
+	if len(toks) < 2 {
+		return false
+	}
+	hit := false
+	for _, t := range toks {
+		if covered(ins, sp.Start+t.Start, sp.Start+t.End) {
+			hit = true
+			continue
+		}
+		w := text[sp.Start+t.Start : sp.Start+t.End]
+		if utf8.RuneCountInString(w) > 1 && !detect.IsNameParticle(w) {
+			return false
+		}
+	}
+	return hit
+}
+
 func (s *Session) collisions(text string, ins []insertion, kept []entity.Span) []finding {
 	var out []finding
 	for _, h := range s.e.vault.FindSurrogates(text) {
 		kind := h.Record.Kind
-		if !strings.HasPrefix(kind, "person.") || kind == "person.joined" || covered(ins, h.Start, h.End) || insideKept(kept, entity.Person, h.Start, h.End) {
+		if !strings.HasPrefix(kind, "person.") || kind == "person.joined" || covered(ins, h.Start, h.End) {
 			continue
 		}
 		word := text[h.Start:h.End]
@@ -430,6 +484,9 @@ func recordSurrogate(rec vault.Record, matched string) string {
 	case entity.Person, entity.Org, entity.Location, entity.Address:
 		return textutil.MatchCase(matched, rec.Surrogate)
 	case entity.Phone:
+		if rec.Kind == spokenPhoneKind {
+			return textutil.MatchCase(matched, rec.Surrogate)
+		}
 		return reformatDigits(matched, rec.Surrogate)
 	case entity.Email:
 		if textutil.IsAllUpper(matched) {
@@ -456,7 +513,7 @@ func (s *Session) replace(sp entity.Span) (string, error) {
 }
 
 func (s *Session) shiftDate(text string) string {
-	out := dateshift.Shift(text, s.e.policy.DateOrder, s.offset)
+	out := dateshift.ShiftLoose(text, s.e.policy.DateOrder, s.offset)
 	if out != text {
 		s.mu.Lock()
 		if _, ok := s.dates[out]; !ok {
@@ -519,6 +576,9 @@ func (s *Session) surrogate(sp entity.Span) (string, error) {
 		names := s.e.emailNameTokens(sp.Text)
 		return s.e.assignCase(sp.Text, "email", func(real string, i int) string { return s.e.emailCandidate(real, i, names) })
 	case entity.Phone:
+		if !strings.ContainsAny(sp.Text, "0123456789") {
+			return s.e.assignCase(sp.Text, spokenPhoneKind, s.e.gen.SpokenPhone)
+		}
 		sur, err := s.e.vault.Assign("phone", sp.Text, func(i int) string { return s.e.gen.Phone(sp.Text, i) })
 		if err != nil {
 			return "", err
@@ -539,13 +599,15 @@ func (s *Session) surrogate(sp entity.Span) (string, error) {
 	return s.e.vault.Assign(kind, sp.Text, func(i int) string { return s.e.gen.Shape(kind, sp.Text, i) })
 }
 
+const spokenPhoneKind = "phone.spoken"
+
 func (e *Engine) assignCase(text, kind string, gen func(string, int) string) (string, error) {
 	sur, err := e.vault.Assign(kind, text, func(i int) string { return gen(text, i) })
 	if err != nil {
 		return "", err
 	}
 	switch kind {
-	case "org", "location", "address":
+	case "org", "location", "address", spokenPhoneKind:
 		return textutil.MatchCase(text, sur), nil
 	case "email":
 		if textutil.IsAllUpper(text) {

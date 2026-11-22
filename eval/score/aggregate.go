@@ -28,7 +28,11 @@ type Latency struct {
 	DirectP95  float64 `json:"direct_p95_ms"`
 	OverP50    float64 `json:"overhead_p50_ms"`
 	OverP95    float64 `json:"overhead_p95_ms"`
+	OverSlow   int     `json:"overhead_over_1s"`
+	SlowShare  float64 `json:"overhead_over_1s_share"`
 }
+
+const SlowOverheadMS = 1000
 
 type Leak struct {
 	Item    string `json:"item"`
@@ -183,7 +187,14 @@ func Aggregate(results []ItemResult) Summary {
 		s.ResidueSamples = s.ResidueSamples[:25]
 	}
 	for mode, l := range lat {
+		slow := 0
+		for _, over := range l[2] {
+			if over > SlowOverheadMS {
+				slow++
+			}
+		}
 		s.Latency[mode] = Latency{
+			OverSlow: slow, SlowShare: float64(slow) / float64(len(l[2])),
 			N:          len(l[0]),
 			GatewayP50: Percentile(l[0], 50), GatewayP95: Percentile(l[0], 95),
 			DirectP50: Percentile(l[1], 50), DirectP95: Percentile(l[1], 95),

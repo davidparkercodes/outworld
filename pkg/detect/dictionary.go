@@ -165,6 +165,10 @@ func (d *Dictionary) Values() []string {
 	return out
 }
 
+var nameParticles = wordSet(`de del della di da dos das du van von der den ten ter la le el al bin ibn bint binti abu san st`)
+
+func IsNameParticle(w string) bool { return nameParticles[strings.ToLower(w)] }
+
 type dictPhrase struct {
 	entry int
 	text  string
@@ -201,6 +205,11 @@ func (d *Dictionary) Detector() *DictionaryDetector {
 		}
 		dd.phrases = append(dd.phrases, dictPhrase{entry: entry, text: text, weak: weak && person})
 		dd.matcher.Add(text, len(dd.phrases)-1, rule)
+		if folded := textutil.Fold(text); person && folded != key && !seen[folded] {
+			seen[folded] = true
+			dd.phrases = append(dd.phrases, dictPhrase{entry: entry, text: folded, weak: weak})
+			dd.matcher.Add(folded, len(dd.phrases)-1, rule)
+		}
 	}
 	for i, e := range d.Entries {
 		person := e.Type == entity.Person
@@ -229,6 +238,22 @@ func (d *Dictionary) Detector() *DictionaryDetector {
 			}
 			if len(rest) > 1 {
 				add(i, strings.Join(rest, "-"), true)
+				if nameParticles[rest[0]] {
+					add(i, strings.Join(rest, " "), true)
+				}
+			}
+			if last := words[len(words)-1]; len(words) == 2 && len(first) >= 2 && len(last) >= 2 {
+				for _, sep := range []string{" ", ", ", "/", ".", "_", "-", ""} {
+					if sep == "" && utf8.RuneCountInString(first+last) < 7 {
+						continue
+					}
+					add(i, last+sep+first, true)
+				}
+				fi := string([]rune(first)[:1])
+				li := string([]rune(last)[:1])
+				for _, h := range []string{fi + ". " + last, last + ", " + fi + ".", last + " " + fi + ".", first + " " + li + "."} {
+					add(i, h, true, textutil.Capitalized)
+				}
 			}
 			for _, sep := range []string{".", "_", "-", ""} {
 				add(i, strings.Join(words, sep), true)

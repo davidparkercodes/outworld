@@ -62,7 +62,7 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request, path string) {
 	}
 	li.stream, _ = req["stream"].(bool)
 
-	d, err := s.decide(r.Context(), r, req)
+	d, err := s.decide(r.Context(), r, requestText(req), config.APIOpenAI)
 	if err != nil {
 		li.status, li.errKind = http.StatusBadGateway, "route"
 		w.Header().Set(HeaderRoute, config.RouteBlock)
@@ -78,7 +78,7 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request, path string) {
 		li.status = http.StatusForbidden
 		writeError(w, li.status, "outworld_blocked", "request blocked by outworld policy ("+d.reason+")")
 	case config.RouteLocal, config.RoutePassthrough:
-		li.status = s.forwardRaw(w, r, s.upstreams[d.upstream], path, body, req)
+		li.status = s.forwardRaw(w, r, s.upstreams[d.upstream], path, body, req, writeError)
 	case config.RouteMasked:
 		li.status = s.forwardMasked(w, r, s.upstreams[d.upstream], path, req, li)
 	}
@@ -156,31 +156,43 @@ func requestText(req map[string]any) string {
 	return strings.Join(parts, "\n")
 }
 
-func (s *Server) upstreamFor(route, explicit string) (string, error) {
+func (s *Server) upstreamFor(route, explicit, api string) (string, error) {
+	if route == config.RouteBlock {
+		return "", nil
+	}
 	name := explicit
 	if name == "" {
+		ru := config.RouteUpstreams{
+			MaskedUpstream:      s.cfg.Policy.MaskedUpstream,
+			LocalUpstream:       s.cfg.Policy.LocalUpstream,
+			PassthroughUpstream: s.cfg.Policy.PassthroughUpstream,
+		}
+		if api == config.APIAnthropic {
+			ru = s.cfg.Policy.Anthropic
+		}
 		switch route {
 		case config.RouteMasked:
-			name = s.cfg.Policy.MaskedUpstream
+			name = ru.MaskedUpstream
 		case config.RouteLocal:
-			name = s.cfg.Policy.LocalUpstream
+			name = ru.LocalUpstream
 		case config.RoutePassthrough:
-			name = s.cfg.Policy.PassthroughUpstream
-		case config.RouteBlock:
-			return "", nil
+			name = ru.PassthroughUpstream
 		}
 	}
 	if name == "" {
-		return "", fmt.Errorf("route %q has no upstream configured", route)
+		return "", fmt.Errorf("route %q has no upstream configured for %s-format requests", route, api)
 	}
-	if _, ok := s.upstreams[name]; !ok {
+	up, ok := s.upstreams[name]
+	if !ok {
 		return "", fmt.Errorf("route %q refers to unknown upstream %q", route, name)
+	}
+	if kind := up.cfg.APIKind(); kind != api {
+		return "", fmt.Errorf("upstream %q speaks the %s api and cannot serve a %s-format request", name, kind, api)
 	}
 	return name, nil
 }
 
-func (s *Server) decide(ctx context.Context, r *http.Request, req map[string]any) (decision, error) {
-	text := requestText(req)
+func (s *Server) decide(ctx context.Context, r *http.Request, text, api string) (decision, error) {
 	var detected map[entity.Type]bool
 	var detectErr error
 	detectTypes := func() (map[entity.Type]bool, error) {
@@ -237,7 +249,7 @@ func (s *Server) decide(ctx context.Context, r *http.Request, req map[string]any
 		default:
 			return decision{}, fmt.Errorf("invalid %s header value", HeaderRoute)
 		}
-		name, err := s.upstreamFor(route, strings.TrimSpace(up))
+		name, err := s.upstreamFor(route, strings.TrimSpace(up), api)
 		if err != nil {
 			return decision{}, err
 		}
@@ -249,14 +261,14 @@ func (s *Server) decide(ctx context.Context, r *http.Request, req map[string]any
 			return decision{}, err
 		}
 		if ok {
-			name, err := s.upstreamFor(rules[i].Route, rules[i].Upstream)
+			name, err := s.upstreamFor(rules[i].Route, rules[i].Upstream, api)
 			if err != nil {
 				return decision{}, err
 			}
 			return decision{route: rules[i].Route, upstream: name, reason: ruleName(rules[i], i)}, nil
 		}
 	}
-	name, err := s.upstreamFor(s.cfg.Policy.DefaultRoute, "")
+	name, err := s.upstreamFor(s.cfg.Policy.DefaultRoute, "", api)
 	if err != nil {
 		return decision{}, err
 	}
@@ -281,23 +293,26 @@ func (s *Server) newUpstreamRequest(ctx context.Context, up *upstream, path stri
 	if a := clientReq.Header.Get("Accept"); a != "" {
 		req.Header.Set("Accept", a)
 	}
-	up.authorize(req)
+	if up.cfg.APIKind() == config.APIAnthropic {
+		forwardAnthropicHeaders(req.Header, clientReq.Header)
+	}
+	s.authorize(up, req, clientReq)
 	return req, nil
 }
 
-func (s *Server) forwardRaw(w http.ResponseWriter, r *http.Request, up *upstream, path string, body []byte, req map[string]any) int {
+func (s *Server) forwardRaw(w http.ResponseWriter, r *http.Request, up *upstream, path string, body []byte, req map[string]any, werr errorWriter) int {
 	if up.cfg.Model != "" {
 		req["model"] = up.cfg.Model
 		body = encode(req)
 	}
 	ureq, err := s.newUpstreamRequest(r.Context(), up, path, body, r)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "outworld_internal", "could not build upstream request")
+		werr(w, http.StatusInternalServerError, "outworld_internal", "could not build upstream request")
 		return http.StatusInternalServerError
 	}
 	resp, err := up.client.Do(ureq)
 	if err != nil {
-		writeError(w, http.StatusBadGateway, "outworld_upstream_error", "upstream unreachable")
+		werr(w, http.StatusBadGateway, "outworld_upstream_error", "upstream unreachable")
 		return http.StatusBadGateway
 	}
 	defer resp.Body.Close()
@@ -401,16 +416,24 @@ func rehydrateBody(sess *outworld.Session, raw []byte) ([]byte, []string) {
 		return []byte(text), sess.UnknownNames(text)
 	}
 	var texts []string
+	remember := false
 	var walk func(v any, key string) any
 	walk = func(v any, key string) any {
 		switch t := v.(type) {
 		case string:
 			if key == "arguments" {
-				return sess.RehydrateArguments(t)
+				out := sess.RehydrateArguments(t)
+				if remember {
+					rememberArguments(sess, t, out)
+				}
+				return out
 			}
 			out := sess.Rehydrate(t)
 			if key == "content" || key == "text" || key == "reasoning_content" || key == "message" {
 				texts = append(texts, out)
+			}
+			if remember && (key == "content" || key == "text" || key == "reasoning_content" || key == "reasoning" || key == "refusal") {
+				sess.Remember(out, t)
 			}
 			return out
 		case []any:
@@ -428,6 +451,7 @@ func rehydrateBody(sess *outworld.Session, raw []byte) ([]byte, []string) {
 	}
 	for _, k := range []string{"choices", "error"} {
 		if v, ok := obj[k]; ok {
+			remember = k == "choices"
 			obj[k] = walk(v, k)
 		}
 	}

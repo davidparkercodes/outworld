@@ -7,7 +7,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 ARG PRELOAD=1
 RUN if [ "$PRELOAD" = "1" ]; then python -c "from gliner import GLiNER; GLiNER.from_pretrained('urchade/gliner_multi_pii-v1')"; fi
-COPY app.py .
+COPY app.py chunking.py ./
 RUN useradd --system --uid 10001 gliner && chown -R gliner /models /app
 USER gliner
 EXPOSE 8790

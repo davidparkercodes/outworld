@@ -31,6 +31,7 @@ type Config struct {
 	NER          NERConfig           `yaml:"ner"`
 	Auth         AuthConfig          `yaml:"auth"`
 	Log          LogConfig           `yaml:"log"`
+	Memo         MemoConfig          `yaml:"memo"`
 	MaxBodyBytes int64               `yaml:"max_body_bytes"`
 
 	dir string
@@ -42,7 +43,25 @@ type VaultConfig struct {
 	KeyFile string `yaml:"key_file"`
 }
 
+type MemoConfig struct {
+	Enabled  *bool `yaml:"enabled"`
+	MaxBytes int64 `yaml:"max_bytes"`
+}
+
+const (
+	APIOpenAI    = "openai"
+	APIAnthropic = "anthropic"
+)
+
+type RouteUpstreams struct {
+	MaskedUpstream      string `yaml:"masked_upstream"`
+	LocalUpstream       string `yaml:"local_upstream"`
+	PassthroughUpstream string `yaml:"passthrough_upstream"`
+}
+
 type Upstream struct {
+	API           string            `yaml:"api"`
+	ForwardAuth   bool              `yaml:"forward_auth"`
 	BaseURL       string            `yaml:"base_url"`
 	APIKeyEnv     string            `yaml:"api_key_env"`
 	Model         string            `yaml:"model"`
@@ -55,6 +74,10 @@ type PolicyConfig struct {
 	MaskedUpstream      string            `yaml:"masked_upstream"`
 	LocalUpstream       string            `yaml:"local_upstream"`
 	PassthroughUpstream string            `yaml:"passthrough_upstream"`
+	Anthropic           RouteUpstreams    `yaml:"anthropic"`
+	KeepMetadata        bool              `yaml:"keep_metadata"`
+	NameHeuristics      *bool             `yaml:"name_heuristics"`
+	Allow               []string          `yaml:"allow"`
 	DateShift           *bool             `yaml:"date_shift"`
 	DateShiftScope      string            `yaml:"date_shift_scope"`
 	DateOrder           string            `yaml:"date_order"`
@@ -182,6 +205,11 @@ func (c *Config) Validate() error {
 		if u.BaseURL == "" {
 			errs = append(errs, fmt.Sprintf("upstreams.%s.base_url is required", name))
 		}
+		switch u.API {
+		case "", APIOpenAI, APIAnthropic:
+		default:
+			errs = append(errs, fmt.Sprintf("upstreams.%s.api %q is not one of openai, anthropic", name, u.API))
+		}
 	}
 	if !validRoute(c.Policy.DefaultRoute) {
 		errs = append(errs, fmt.Sprintf("policy.default_route %q is not one of masked, local, passthrough, block", c.Policy.DefaultRoute))
@@ -197,8 +225,27 @@ func (c *Config) Validate() error {
 	checkUp("policy.masked_upstream", c.Policy.MaskedUpstream)
 	checkUp("policy.local_upstream", c.Policy.LocalUpstream)
 	checkUp("policy.passthrough_upstream", c.Policy.PassthroughUpstream)
-	if c.Policy.MaskedUpstream == "" && len(c.Upstreams) > 0 {
-		errs = append(errs, "policy.masked_upstream is required when upstreams are configured")
+	checkAPI := func(field, name, api string) {
+		if u, ok := c.Upstreams[name]; ok && u.APIKind() != api {
+			errs = append(errs, fmt.Sprintf("%s: upstream %q has api %q, need %q", field, name, u.APIKind(), api))
+		}
+	}
+	checkAPI("policy.masked_upstream", c.Policy.MaskedUpstream, APIOpenAI)
+	checkAPI("policy.local_upstream", c.Policy.LocalUpstream, APIOpenAI)
+	checkAPI("policy.passthrough_upstream", c.Policy.PassthroughUpstream, APIOpenAI)
+	for field, name := range map[string]string{
+		"policy.anthropic.masked_upstream":      c.Policy.Anthropic.MaskedUpstream,
+		"policy.anthropic.local_upstream":       c.Policy.Anthropic.LocalUpstream,
+		"policy.anthropic.passthrough_upstream": c.Policy.Anthropic.PassthroughUpstream,
+	} {
+		checkUp(field, name)
+		checkAPI(field, name, APIAnthropic)
+	}
+	if c.Policy.MaskedUpstream == "" && c.Policy.Anthropic.MaskedUpstream == "" && len(c.Upstreams) > 0 {
+		errs = append(errs, "policy.masked_upstream or policy.anthropic.masked_upstream is required when upstreams are configured")
+	}
+	if c.Memo.MaxBytes < 0 {
+		errs = append(errs, "memo.max_bytes must not be negative (use memo.enabled: false to turn the memo off)")
 	}
 	for k, v := range c.Policy.Entities {
 		if _, err := entity.ParseType(k); err != nil {
@@ -281,6 +328,8 @@ func (c *Config) EnginePolicy() (outworld.Policy, error) {
 	if c.Policy.DateShift != nil {
 		p.DateShift = *c.Policy.DateShift
 	}
+	p.NoNameHeuristics = c.Policy.NameHeuristics != nil && !*c.Policy.NameHeuristics
+	p.Allow = c.Policy.Allow
 	if strings.EqualFold(c.Policy.DateOrder, "dmy") {
 		p.DateOrder = dateshift.DMY
 	}
@@ -291,6 +340,20 @@ func (c *Config) EnginePolicy() (outworld.Policy, error) {
 		p.ShiftMaxDays = c.Policy.ShiftMaxDays
 	}
 	return p, nil
+}
+
+func (u Upstream) APIKind() string {
+	if u.API == "" {
+		return APIOpenAI
+	}
+	return u.API
+}
+
+func (c *Config) MemoBytes() int64 {
+	if c.Memo.Enabled != nil && !*c.Memo.Enabled {
+		return -1
+	}
+	return c.Memo.MaxBytes
 }
 
 func (c *Config) RouteHeaderAllowed() bool {

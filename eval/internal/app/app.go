@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -22,7 +23,9 @@ type Options struct {
 	OutworldDir  string
 	GatewayBin   string
 	OutDir       string
-	DictModes    []string
+	Configs      []string
+	APIs         []string
+	Memo         bool
 	Modes        []string
 	MaxLeak      float64
 	MaxErrorRate float64
@@ -38,6 +41,9 @@ type Options struct {
 
 type RunReport struct {
 	Label      string             `json:"label"`
+	API        string             `json:"api"`
+	Detectors  string             `json:"detectors"`
+	NER        bool               `json:"ner"`
 	Dictionary string             `json:"dictionary,omitempty"`
 	Config     string             `json:"config"`
 	GatewayLog string             `json:"gateway_log,omitempty"`
@@ -77,6 +83,11 @@ type Report struct {
 	Upstream string      `json:"upstream"`
 	Model    string      `json:"model"`
 	Modes    []string    `json:"modes"`
+	APIs     []string    `json:"apis"`
+	Configs  []string    `json:"configs"`
+	CPUCores int         `json:"cpu_cores"`
+	NER      bool        `json:"ner"`
+	Memo     bool        `json:"memo"`
 	Corpus   CorpusStats `json:"corpus"`
 	Runs     []RunReport `json:"runs"`
 	Gate     Gate        `json:"gate"`
@@ -110,7 +121,23 @@ func Execute(ctx context.Context, o Options) (*Report, error) {
 		return nil, err
 	}
 
-	rep := &Report{Started: time.Now().UTC(), Model: o.Model, Modes: o.Modes, Gate: Gate{MaxLeak: o.MaxLeak, MaxErrorRate: o.MaxErrorRate, Passed: true}}
+	if len(o.APIs) == 0 {
+		o.APIs = []string{runner.APIOpenAI}
+	}
+	for _, a := range o.APIs {
+		if a != runner.APIOpenAI && a != runner.APIAnthropic {
+			return nil, fmt.Errorf("unknown api %q (want openai or anthropic)", a)
+		}
+		if a == runner.APIAnthropic && o.RealUpstream != "" {
+			return nil, fmt.Errorf("--real-upstream is not supported with --api anthropic: the recording proxy and the quality comparison only speak the OpenAI format")
+		}
+	}
+	o.Configs, err = ResolveConfigs(o.Configs, nil, o.NERURL)
+	if err != nil {
+		return nil, err
+	}
+
+	rep := &Report{Started: time.Now().UTC(), Model: o.Model, Modes: o.Modes, APIs: o.APIs, Configs: o.Configs, CPUCores: runtime.NumCPU(), Memo: o.Memo, Gate: Gate{MaxLeak: o.MaxLeak, MaxErrorRate: o.MaxErrorRate, Passed: true}}
 	rep.Corpus = CorpusStats{Items: len(items), Requests: len(items) * len(o.Modes), SpansByType: map[string]int{}, DictPeople: len(dictEntries)}
 	for _, it := range items {
 		rep.Corpus.Spans += len(it.Spans)
@@ -156,11 +183,19 @@ func Execute(ctx context.Context, o Options) (*Report, error) {
 	}
 
 	pol := score.DefaultPolicy()
-	for _, dm := range o.DictModes {
-		rr, err := runOnce(ctx, o, tmp, rep.RunDir, bin, dm, peopleAbs, items, pol, dict, real, apiKey)
+	type plan struct{ api, cfg string }
+	var plans []plan
+	for _, api := range o.APIs {
+		for _, cfg := range o.Configs {
+			plans = append(plans, plan{api, cfg})
+		}
+	}
+	for _, p := range plans {
+		rr, err := runOnce(ctx, o, tmp, rep.RunDir, bin, p.api, p.cfg, peopleAbs, items, pol, dict, real, apiKey)
 		if err != nil {
 			return nil, err
 		}
+		rep.NER = rep.NER || rr.NER
 		rep.Runs = append(rep.Runs, *rr)
 		s := rr.Summary
 		if s.Leak.N > 0 && s.Leak.Rate > o.MaxLeak {
@@ -176,17 +211,18 @@ func Execute(ctx context.Context, o Options) (*Report, error) {
 	return rep, nil
 }
 
-func runOnce(ctx context.Context, o Options, tmp, runDir, bin, dictMode, peopleAbs string, items []corpus.Item, pol score.Policy, dict map[string]bool, real bool, apiKey string) (*RunReport, error) {
-	label := "with-dictionary"
-	dictPath := peopleAbs
-	if dictMode == "without" {
-		label, dictPath = "without-dictionary", ""
+func runOnce(ctx context.Context, o Options, tmp, runDir, bin, api, cfgName, peopleAbs string, items []corpus.Item, pol score.Policy, dict map[string]bool, real bool, apiKey string) (*RunReport, error) {
+	label := cfgName
+	if len(o.APIs) > 1 {
+		label = cfgName + "/" + api
 	}
-	if o.NERURL != "" {
-		label = "dictionary+ner"
-		if dictPath == "" {
-			label = "ner-only"
-		}
+	slug := strings.ReplaceAll(label, "/", ".")
+	dictPath, nerURL := "", ""
+	if cfgName == ConfigDictionary || cfgName == ConfigDictionaryNER {
+		dictPath = peopleAbs
+	}
+	if cfgName == ConfigNER || cfgName == ConfigDictionaryNER {
+		nerURL = o.NERURL
 	}
 	o.logf("== run %s", label)
 
@@ -225,14 +261,14 @@ func runOnce(ctx context.Context, o Options, tmp, runDir, bin, dictMode, peopleA
 	}
 	listen := fmt.Sprintf("127.0.0.1:%d", port)
 	cfg := gateway.Config{
-		Listen: listen, VaultPath: filepath.Join(tmp, label+".vault"), UpstreamURL: gwUp.URL + "/v1",
-		Dictionary: dictPath, NERURL: o.NERURL, DateShift: true, Entities: pol,
+		Listen: listen, VaultPath: filepath.Join(tmp, slug+".vault"), UpstreamURL: gwUp.URL + "/v1",
+		Dictionary: dictPath, NERURL: nerURL, API: api, Memo: o.Memo, DateShift: true, Entities: pol,
 	}
-	cfgPath := filepath.Join(tmp, label+".yaml")
+	cfgPath := filepath.Join(tmp, slug+".yaml")
 	if err := os.WriteFile(cfgPath, []byte(cfg.YAML()), 0o600); err != nil {
 		return nil, err
 	}
-	logPath := filepath.Join(runDir, label+".gateway.log")
+	logPath := filepath.Join(runDir, slug+".gateway.log")
 	cloudKey := "eval-fake-key"
 	if real {
 		cloudKey = apiKey
@@ -244,6 +280,7 @@ func runOnce(ctx context.Context, o Options, tmp, runDir, bin, dictMode, peopleA
 	defer proc.Stop()
 
 	t := runner.Target{
+		API:       api,
 		GatewayV1: proc.URL + "/v1", DirectV1: directV1, DirectKey: directKey, Recorder: rec,
 		Model: o.Model, CheckRestore: !real, Timeout: o.Timeout,
 	}
@@ -252,7 +289,7 @@ func runOnce(ctx context.Context, o Options, tmp, runDir, bin, dictMode, peopleA
 			o.logf("  %d/%d requests", done, total)
 		}
 	})
-	rr := &RunReport{Label: label, Dictionary: dictPath, Config: cfg.YAML(), GatewayLog: logPath}
+	rr := &RunReport{Label: label, API: api, Detectors: cfgName, NER: nerURL != "", Dictionary: dictPath, Config: cfg.YAML(), GatewayLog: logPath}
 	for _, ob := range obs {
 		rr.Items = append(rr.Items, score.ScoreItem(ob, pol, dict))
 	}

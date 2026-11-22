@@ -17,6 +17,7 @@ const (
 )
 
 type Target struct {
+	API          string
 	GatewayV1    string
 	GatewayKey   string
 	DirectV1     string
@@ -39,7 +40,7 @@ func Run(ctx context.Context, items []corpus.Item, modes []string, t Target, pro
 			}
 			stream := mode == ModeStream
 			mark := t.Recorder.Mark()
-			res := Chat(ctx, client, t.GatewayV1, t.GatewayKey, t.Model, it.Messages, stream)
+			res := Send(ctx, client, t.API, t.GatewayV1, t.GatewayKey, t.Model, it.Messages, stream)
 			recs := t.Recorder.Since(mark)
 			var up strings.Builder
 			for _, r := range recs {
@@ -54,7 +55,7 @@ func Run(ctx context.Context, items []corpus.Item, modes []string, t Target, pro
 				o.Err = res.Err.Error()
 			}
 			if t.DirectV1 != "" {
-				d := Chat(ctx, client, t.DirectV1, t.DirectKey, t.Model, it.Messages, stream)
+				d := Send(ctx, client, t.API, t.DirectV1, t.DirectKey, t.Model, it.Messages, stream)
 				o.DirectLatency = d.Latency
 			}
 			out = append(out, o)

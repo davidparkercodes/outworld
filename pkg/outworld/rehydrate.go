@@ -25,6 +25,10 @@ func realFor(rec vault.Record, matched string) string {
 	switch kindType(rec.Kind) {
 	case "person", "org", "location", "address":
 		return textutil.MatchCase(matched, rec.Real)
+	case "phone":
+		if rec.Kind == spokenPhoneKind {
+			return textutil.MatchCase(matched, rec.Real)
+		}
 	}
 	return rec.Real
 }
@@ -63,7 +67,7 @@ func (s *Session) rehydrate(left, text string, escape bool) string {
 	return b.String()
 }
 
-var phoneLikeRE = regexp.MustCompile(`(?:\+?1[\s.\-]?)?(?:\(\d{3}\)[\s.\-]?|\d{3}[\s.\-]?)\d{3}[\s.\-]?\d{4}\b`)
+var phoneLikeRE = regexp.MustCompile(`(?:\+?1[\s.\-]?)?(?:\(\d{3}\)[\s.\-]?|\d{3}[\s.\-]?)\d{3}[\s.\-]?\d{4}\b|(?:\+\d{1,3}[ .\-]?\(?|\(?0)\d{1,5}\)?(?:[ .\-]?\d{2,8}){1,5}\b`)
 
 type restoreEdit struct {
 	start, end int
@@ -84,7 +88,7 @@ func (s *Session) unshift(seg string) string {
 		}
 	}
 	if s.offset != 0 {
-		for _, m := range dateshift.Find(seg, s.e.policy.DateOrder) {
+		for _, m := range dateshift.FindLoose(seg, s.e.policy.DateOrder) {
 			clash := false
 			for _, ed := range eds {
 				if m.Start < ed.end && ed.start < m.End {
@@ -97,6 +101,9 @@ func (s *Session) unshift(seg string) string {
 			}
 			repl, ok := s.dateOriginal(m.Text)
 			if !ok {
+				if m.Weak {
+					continue
+				}
 				repl = m.Shift(-s.offset)
 			}
 			eds = append(eds, restoreEdit{m.Start, m.End, repl})
@@ -247,7 +254,7 @@ func (r *StreamRehydrator) avoidStraddle(cut int) int {
 		spans = append(spans, rng{h.Start, h.End})
 	}
 	if r.s.offset != 0 {
-		for _, m := range dateshift.Find(r.buf, r.s.e.policy.DateOrder) {
+		for _, m := range dateshift.FindLoose(r.buf, r.s.e.policy.DateOrder) {
 			spans = append(spans, rng{m.Start, m.End})
 		}
 	}
@@ -318,6 +325,8 @@ func isMonthish(w string, partial bool) bool {
 	return false
 }
 
+var compactDateTokenRE = regexp.MustCompile(`^(?:\d{2}[A-Za-z]{1,3}\d{0,4}|\d{8}T\d{0,6}Z?)$`)
+
 func datePrefix(tail string) bool {
 	if len(tail) > 40 || strings.ContainsAny(tail, "\n\r") {
 		return false
@@ -327,7 +336,7 @@ func datePrefix(tail string) bool {
 		return false
 	}
 	for _, ch := range tail {
-		if !(textutil.IsWordRune(ch) || strings.ContainsRune(" ,./-", ch)) {
+		if !(textutil.IsWordRune(ch) || strings.ContainsRune(" ,./-º°", ch)) {
 			return false
 		}
 	}
@@ -335,9 +344,12 @@ func datePrefix(tail string) bool {
 		w := tail[t.Start:t.End]
 		partial := i == len(toks)-1 && t.End == len(tail)
 		if isDigits(w) {
-			if len(w) > 4 {
+			if len(w) > 8 {
 				return false
 			}
+			continue
+		}
+		if compactDateTokenRE.MatchString(w) {
 			continue
 		}
 		if num := strings.TrimRight(w, "stndrh"); isDigits(num) && len(w)-len(num) <= 2 {
@@ -346,7 +358,7 @@ func datePrefix(tail string) bool {
 		if w == "of" || (partial && w == "o") {
 			continue
 		}
-		if isMonthish(w, partial) {
+		if isMonthish(w, partial) || dateshift.Vocab(w, partial) {
 			continue
 		}
 		return false
@@ -355,7 +367,7 @@ func datePrefix(tail string) bool {
 }
 
 func phonePrefix(tail string) bool {
-	if len(tail) > 18 {
+	if len(tail) > 20 {
 		return false
 	}
 	digits := 0
@@ -373,7 +385,7 @@ func phonePrefix(tail string) bool {
 			return false
 		}
 	}
-	return digits > 0 && digits <= 11
+	return digits > 0 && digits <= 13
 }
 
 func isDigits(s string) bool {

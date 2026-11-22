@@ -98,6 +98,7 @@ func (f *Fake) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /v1/models", f.models)
 	mux.HandleFunc("POST /v1/chat/completions", f.chat)
+	mux.HandleFunc("POST /v1/messages", f.messages)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok")) })
 	return mux
 }

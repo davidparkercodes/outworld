@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/davidparkercodes/outworld/internal/textutil"
 	"github.com/davidparkercodes/outworld/pkg/dateshift"
 	"github.com/davidparkercodes/outworld/pkg/detect"
 	"github.com/davidparkercodes/outworld/pkg/entity"
@@ -18,11 +19,13 @@ import (
 )
 
 type Policy struct {
-	Actions      map[entity.Type]entity.Action
-	DateShift    bool
-	DateOrder    dateshift.Order
-	ShiftMinDays int
-	ShiftMaxDays int
+	Actions          map[entity.Type]entity.Action
+	NoNameHeuristics bool
+	Allow            []string
+	DateShift        bool
+	DateOrder        dateshift.Order
+	ShiftMinDays     int
+	ShiftMaxDays     int
 }
 
 func DefaultPolicy() Policy {
@@ -74,6 +77,7 @@ type Options struct {
 	NER         detect.Detector
 	NEROptional bool
 	Extra       []detect.Detector
+	MemoBytes   int64
 }
 
 type Engine struct {
@@ -84,6 +88,8 @@ type Engine struct {
 	checkers    []detect.Detector
 	ner         detect.Detector
 	nerOptional bool
+	memo        *Memo
+	allow       map[string]bool
 }
 
 var ErrNoVault = errors.New("outworld: a vault is required")
@@ -102,7 +108,20 @@ func New(o Options) (*Engine, error) {
 		o.Policy.ShiftMinDays = o.Policy.ShiftMaxDays
 	}
 	e := &Engine{vault: o.Vault, policy: o.Policy, gen: surrogate.NewGenerator(o.Vault.Secret()), ner: o.NER, nerOptional: o.NEROptional}
+	if o.MemoBytes == 0 {
+		o.MemoBytes = DefaultMemoBytes
+	}
+	e.memo = NewMemo(o.MemoBytes)
 	base := []detect.Detector{detect.NewRegexDetector(), detect.DateDetector{Order: o.Policy.DateOrder}}
+	if !o.Policy.NoNameHeuristics {
+		base = append(base, detect.NameDetector{})
+	}
+	e.allow = map[string]bool{}
+	for _, a := range o.Policy.Allow {
+		if n := textutil.Normalize(a); n != "" {
+			e.allow[n] = true
+		}
+	}
 	if o.Dictionary != nil {
 		dd := o.Dictionary.Detector()
 		base = append(base, dd)
@@ -134,22 +153,34 @@ func (e *Engine) DateOffset(scope string) int {
 }
 
 func (e *Engine) Detect(ctx context.Context, text string) ([]entity.Span, error) {
-	var all []entity.Span
-	for _, d := range e.detectors {
-		spans, err := d.Detect(ctx, text)
-		if err != nil {
-			return nil, err
-		}
-		all = append(all, spans...)
-	}
+	ds := e.detectors
 	if e.ner != nil {
-		spans, err := e.ner.Detect(ctx, text)
-		if err != nil && !e.nerOptional {
-			return nil, fmt.Errorf("outworld: ner detector failed (fail closed): %w", err)
+		ds = append(append([]detect.Detector(nil), e.detectors...), e.ner)
+	}
+	var all []entity.Span
+	for i, r := range detect.RunAll(ctx, text, ds) {
+		if r.Err != nil {
+			if e.ner != nil && i == len(ds)-1 {
+				if e.nerOptional {
+					continue
+				}
+				return nil, fmt.Errorf("outworld: ner detector failed (fail closed): %w", r.Err)
+			}
+			return nil, r.Err
 		}
-		all = append(all, spans...)
+		all = append(all, r.Spans...)
 	}
 	return all, nil
+}
+
+func (e *Engine) allowed(sp entity.Span) bool {
+	if sp.Source == "dictionary" {
+		return false
+	}
+	if len(e.allow) > 0 && e.allow[textutil.Normalize(sp.Text)] {
+		return true
+	}
+	return sp.Type == entity.Person && sp.Source == "ner" && !strings.ContainsAny(sp.Text, " \t\n") && detect.IsTechTerm(sp.Text)
 }
 
 func (e *Engine) plan(spans []entity.Span) []entity.Span {
@@ -157,7 +188,7 @@ func (e *Engine) plan(spans []entity.Span) []entity.Span {
 	var act []entity.Span
 	for _, s := range spans {
 		s = trimPossessive(s)
-		if s.Len() <= 0 {
+		if s.Len() <= 0 || e.allowed(s) {
 			continue
 		}
 		if e.policy.Action(s.Type) == entity.Keep || insideKept(kept, s.Type, s.Start, s.End) {
@@ -169,12 +200,9 @@ func (e *Engine) plan(spans []entity.Span) []entity.Span {
 }
 
 func (e *Engine) keptOrgs(spans []entity.Span) []entity.Span {
-	if e.policy.Action(entity.Org) != entity.Keep {
-		return nil
-	}
 	var out []entity.Span
 	for _, s := range spans {
-		if s.Type == entity.Org && s.Source != "ner" {
+		if (s.Type == entity.Org || s.Type == entity.Location) && s.Source != "ner" && e.policy.Action(s.Type) == entity.Keep {
 			out = append(out, s)
 		}
 	}

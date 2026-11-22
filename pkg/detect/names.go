@@ -67,7 +67,7 @@ func lowerNameContext(text string, start, end int) bool {
 		return true
 	}
 	rest := strings.TrimLeft(text[end:le], " ")
-	if strings.HasPrefix(rest, ":") {
+	if speakerColon(rest) {
 		before := strings.TrimSpace(text[ls:start])
 		if before == "" || strings.HasSuffix(before, "]") || strings.HasSuffix(before, ">") {
 			return true
@@ -216,4 +216,11 @@ func CapitalizedWordBefore(text string, i int) (int, string) {
 		return i, ""
 	}
 	return k, text[k : i-1]
+}
+
+func speakerColon(rest string) bool {
+	if !strings.HasPrefix(rest, ":") {
+		return false
+	}
+	return len(rest) == 1 || rest[1] == ' ' || rest[1] == '\t'
 }

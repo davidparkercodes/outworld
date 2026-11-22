@@ -3,6 +3,8 @@ package surrogate
 import (
 	"strings"
 	"unicode"
+
+	"github.com/davidparkercodes/outworld/internal/namedata"
 )
 
 const (
@@ -70,7 +72,16 @@ func init() {
 	}
 }
 
-func GenderOf(name string) string { return genderOf[strings.ToLower(strings.TrimSpace(name))] }
+func GenderOf(name string) string {
+	n := strings.ToLower(strings.TrimSpace(name))
+	if g, ok := genderOf[n]; ok {
+		return g
+	}
+	if g, ok := namedata.LookupGiven(n); ok {
+		return g.Gender
+	}
+	return Neutral
+}
 
 func NormalizeGender(s string) string {
 	switch strings.ToLower(strings.TrimSpace(s)) {

@@ -20,7 +20,7 @@ import (
 	"github.com/davidparkercodes/outworld/pkg/vault"
 )
 
-var version = "0.1.0"
+var version = "0.2.0"
 
 const usage = `outworld: privacy gateway for OpenAI-compatible LLM APIs
 

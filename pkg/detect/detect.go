@@ -3,6 +3,7 @@ package detect
 import (
 	"context"
 	"sort"
+	"sync"
 
 	"github.com/davidparkercodes/outworld/internal/textutil"
 	"github.com/davidparkercodes/outworld/pkg/entity"
@@ -76,4 +77,29 @@ func boundaryOK(text string, start, end int) bool {
 		return false
 	}
 	return true
+}
+
+type Result struct {
+	Spans []entity.Span
+	Err   error
+}
+
+func RunAll(ctx context.Context, text string, ds []Detector) []Result {
+	out := make([]Result, len(ds))
+	if len(ds) == 1 || len(text) < parallelMin {
+		for i, d := range ds {
+			out[i].Spans, out[i].Err = d.Detect(ctx, text)
+		}
+		return out
+	}
+	var wg sync.WaitGroup
+	for i, d := range ds {
+		wg.Add(1)
+		go func(i int, d Detector) {
+			defer wg.Done()
+			out[i].Spans, out[i].Err = d.Detect(ctx, text)
+		}(i, d)
+	}
+	wg.Wait()
+	return out
 }

@@ -15,12 +15,20 @@ upstreams:
   # tee:
   #   base_url: https://confidential.example.net/v1
   #   api_key_env: TEE_API_KEY
+  # claude:
+  #   api: anthropic
+  #   base_url: https://api.anthropic.com/v1
+  #   api_key_env: ANTHROPIC_API_KEY
+  #   # forward_auth: true
 
 policy:
   default_route: masked
   masked_upstream: cloud
   local_upstream: local
   # passthrough_upstream: tee
+  # anthropic:
+  #   masked_upstream: claude
+  # allow: ["Grace Hopper"]
   date_shift: true
   date_shift_scope: global
   date_order: mdy

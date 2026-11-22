@@ -23,6 +23,7 @@ const (
 	HeaderScope        = "X-Outworld-Scope"
 	HeaderMasked       = "X-Outworld-Masked"
 	HeaderUnknownNames = "X-Outworld-Unknown-Names"
+	HeaderToken        = "X-Outworld-Token"
 )
 
 type upstream struct {
@@ -85,22 +86,51 @@ func New(cfg *config.Config, engine *outworld.Engine, o Options) (*Server, error
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.health)
-	mux.HandleFunc("POST /v1/chat/completions", s.auth(s.chat))
-	mux.HandleFunc("POST /v1/completions", s.auth(s.completions))
-	mux.HandleFunc("GET /v1/models", s.auth(s.models))
+	mux.HandleFunc("HEAD /api/hello", s.hello)
+	mux.HandleFunc("POST /v1/chat/completions", s.auth(writeError, s.chat))
+	mux.HandleFunc("POST /v1/completions", s.auth(writeError, s.completions))
+	mux.HandleFunc("GET /v1/models", s.auth(writeError, s.models))
+	mux.HandleFunc("POST /v1/messages", s.auth(writeAnthropicError, s.messages))
+	mux.HandleFunc("POST /v1/messages/count_tokens", s.auth(writeAnthropicError, s.countTokens))
 	return mux
 }
 
-func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "vault_entries": s.engine.Vault().Len()})
+func (s *Server) hello(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusOK)
 }
 
-func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
+func (s *Server) health(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{"status": "ok", "vault_entries": s.engine.Vault().Len(), "memo": s.engine.MemoStats()})
+}
+
+type errorWriter func(w http.ResponseWriter, status int, code, msg string)
+
+func bearerValue(v string) string {
+	v = strings.TrimSpace(v)
+	if len(v) >= 7 && strings.EqualFold(v[:7], "Bearer ") {
+		v = strings.TrimSpace(v[7:])
+	}
+	return v
+}
+
+func (s *Server) isGatewayToken(v string) bool {
+	if s.token == "" {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(bearerValue(v)), []byte(s.token)) == 1
+}
+
+func (s *Server) auth(werr errorWriter, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.token != "" {
-			got := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
-			if subtle.ConstantTimeCompare([]byte(got), []byte(s.token)) != 1 {
-				writeError(w, http.StatusUnauthorized, "outworld_unauthorized", "missing or invalid bearer token")
+			ok := false
+			for _, h := range []string{"Authorization", "X-Api-Key", HeaderToken} {
+				if s.isGatewayToken(r.Header.Get(h)) {
+					ok = true
+				}
+			}
+			if !ok {
+				werr(w, http.StatusUnauthorized, "outworld_unauthorized", "missing or invalid gateway token")
 				return
 			}
 		}
@@ -113,17 +143,28 @@ func (s *Server) models(w http.ResponseWriter, r *http.Request) {
 	if s.cfg.Policy.DefaultRoute == config.RouteLocal && s.cfg.Policy.LocalUpstream != "" {
 		name = s.cfg.Policy.LocalUpstream
 	}
+	anthropic := r.Header.Get("Anthropic-Version") != "" || name == ""
+	if anthropic && s.cfg.Policy.Anthropic.MaskedUpstream != "" {
+		name = s.cfg.Policy.Anthropic.MaskedUpstream
+	}
 	up, ok := s.upstreams[name]
 	if !ok {
 		writeError(w, http.StatusBadGateway, "outworld_no_upstream", "no upstream configured")
 		return
 	}
-	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, up.baseURL+"/models", nil)
+	target := up.baseURL + "/models"
+	if r.URL.RawQuery != "" {
+		target += "?" + r.URL.RawQuery
+	}
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, target, nil)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "outworld_internal", "could not build request")
 		return
 	}
-	up.authorize(req)
+	if up.cfg.APIKind() == config.APIAnthropic {
+		forwardAnthropicHeaders(req.Header, r.Header)
+	}
+	s.authorize(up, req, r)
 	resp, err := up.client.Do(req)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, "outworld_upstream_error", "upstream unreachable")
@@ -135,11 +176,21 @@ func (s *Server) models(w http.ResponseWriter, r *http.Request) {
 	io.Copy(w, resp.Body)
 }
 
-func (u *upstream) authorize(req *http.Request) {
-	if u.apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+u.apiKey)
+func (s *Server) authorize(up *upstream, req, client *http.Request) {
+	switch {
+	case up.cfg.ForwardAuth:
+		for _, h := range []string{"Authorization", "X-Api-Key"} {
+			if v := client.Header.Get(h); v != "" && !s.isGatewayToken(v) {
+				req.Header.Set(h, v)
+			}
+		}
+	case up.apiKey == "":
+	case up.cfg.APIKind() == config.APIAnthropic:
+		req.Header.Set("X-Api-Key", up.apiKey)
+	default:
+		req.Header.Set("Authorization", "Bearer "+up.apiKey)
 	}
-	for k, v := range u.cfg.Headers {
+	for k, v := range up.cfg.Headers {
 		req.Header.Set(k, v)
 	}
 }

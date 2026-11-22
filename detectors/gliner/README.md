@@ -24,3 +24,24 @@ API: `POST /detect` with `{"text": "...", "labels": ["person", ...], "threshold"
 Any service that speaks this shape can replace the sidecar.
 
 The model runs on CPU by default. Set `GLINER_MODEL` to use another GLiNER checkpoint.
+
+## Tuning
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `TORCH_NUM_THREADS` | container CPU quota, else all cores | Inference threads. Set it to the number of cores you give the container (`docker run --cpus 4 -e TORCH_NUM_THREADS=4`). Without a CPU quota and without this variable PyTorch starts one thread per host core, which is slower on a shared machine. |
+| `GLINER_CHUNK_CHARS` | `1500` | Longer texts are split into windows of at most this many characters. |
+| `GLINER_CHUNK_OVERLAP` | `200` | Characters shared by neighbouring windows (capped at a quarter of the window). |
+
+Windows are cut at a newline when one is available in the second half of the window, otherwise at a sentence end, otherwise at whitespace. Each window starts inside the previous one, so a name that straddles a cut is seen whole by the next window; overlapping results with the same label are merged into one span. Any entity up to half the overlap long (100 characters by default) is guaranteed to fit in one window.
+
+Cost grows linearly with length: a 50,000 character text is about 38 windows.
+
+## Tests
+
+```bash
+pip install pytest
+pytest test_gliner_chunking.py
+```
+
+The chunker tests are pure functions and do not load the model.

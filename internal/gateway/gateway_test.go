@@ -312,7 +312,7 @@ func TestMaskedStreaming(t *testing.T) {
 		b, _ := json.Marshal(map[string]any{"who": strings.Fields(user)[2] + " " + strings.TrimSuffix(strings.Fields(user)[3], "")})
 		return string(b)
 	}
-	text := userText + " Ignatius Wetherby was mentioned by the model."
+	text := userText + " Tancredi Wetherby was mentioned by the model."
 	resp := h.post(t, "/v1/chat/completions", chatBody(text, true), nil)
 	if resp.StatusCode != 200 {
 		b, _ := io.ReadAll(resp.Body)
@@ -328,7 +328,7 @@ func TestMaskedStreaming(t *testing.T) {
 	if err := json.Unmarshal([]byte(args), &a); err != nil || a["who"] != "John Smith" {
 		t.Fatalf("stream args %q %v", args, err)
 	}
-	if len(comments) != 1 || !strings.Contains(comments[0], "Ignatius") || !strings.Contains(comments[0], "Wetherby") {
+	if len(comments) != 1 || !strings.Contains(comments[0], "Tancredi") || !strings.Contains(comments[0], "Wetherby") {
 		t.Fatalf("unknown names comment: %v", comments)
 	}
 	if resp.Trailer.Get(HeaderUnknownNames) == "" {

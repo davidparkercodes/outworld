@@ -21,8 +21,11 @@ const refYear = 2023
 type Match struct {
 	Start, End int
 	Text       string
+	Weak       bool
 	date       time.Time
 	hasYear    bool
+	needCtx    bool
+	slash      bool
 	render     func(t time.Time) string
 }
 
@@ -40,8 +43,8 @@ const monthAlt = `Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|Jul
 const weekdayAlt = `Mon(?:day)?|Tue(?:s|sday)?|Wed(?:nesday)?|Thu(?:r|rs|rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?`
 
 var (
-	monthAny   = monthAlt + "|" + strings.ToUpper(monthAlt)
-	weekdayAny = weekdayAlt + "|" + strings.ToUpper(weekdayAlt)
+	monthAny   = monthAlt + "|" + strings.ToUpper(monthAlt) + "|" + strings.ToLower(monthAlt)
+	weekdayAny = weekdayAlt + "|" + strings.ToUpper(weekdayAlt) + "|" + strings.ToLower(weekdayAlt)
 	isoRE      = regexp.MustCompile(`\b(\d{4})([-/])(\d{1,2})([-/])(\d{1,2})`)
 	numericRE  = regexp.MustCompile(`\b(\d{1,2})([/.\-])(\d{1,2})([/.\-])(\d{4}|\d{2})\b`)
 	monthDayRE = regexp.MustCompile(`\b(?:(` + weekdayAny + `)\.?,?\s+)?(` + monthAny + `)(\.?)(\s+)(\d{1,2})(st|nd|rd|th)?\b(?:(,?\s+)(\d{4})\b)?`)
@@ -67,6 +70,9 @@ func renderMonth(orig string, m time.Month) string {
 func matchUpper(orig, s string) string {
 	if len(orig) > 1 && orig == strings.ToUpper(orig) {
 		return strings.ToUpper(s)
+	}
+	if orig == strings.ToLower(orig) {
+		return strings.ToLower(s)
 	}
 	return s
 }
@@ -158,8 +164,12 @@ func valid(y, m, d int) (time.Time, bool) {
 	return t, true
 }
 
-func Find(text string, order Order) []Match {
-	var out []Match
+func Find(text string, order Order) []Match { return find(text, order, false) }
+
+func FindLoose(text string, order Order) []Match { return find(text, order, true) }
+
+func find(text string, order Order, loose bool) []Match {
+	out := findForeign(text)
 	for _, g := range isoRE.FindAllStringSubmatchIndex(text, -1) {
 		sub := groups(text, g)
 		if sub[2] != sub[4] {
@@ -198,9 +208,13 @@ func Find(text string, order Order) []Match {
 		b, _ := strconv.Atoi(sub[3])
 		y, _ := strconv.Atoi(sub[5])
 		twoDigit := len(sub[5]) == 2
+		needCtx := false
 		if twoDigit {
 			if sub[2] == "." {
-				continue
+				if labelWords[lastWord(text, g[0])] {
+					continue
+				}
+				needCtx = (len(sub[1]) != 2 || len(sub[3]) != 2) && !hasCue(text, g[0], g[1])
 			}
 			if y < 70 {
 				y += 2000
@@ -208,7 +222,7 @@ func Find(text string, order Order) []Match {
 				y += 1900
 			}
 		}
-		dmy := order == DMY
+		dmy := order == DMY || sub[2] == "."
 		if a > 12 && b <= 12 {
 			dmy = true
 		} else if b > 12 && a <= 12 {
@@ -224,7 +238,7 @@ func Find(text string, order Order) []Match {
 		}
 		sep, aw := sub[2], pairWidth(sub[1], sub[3])
 		bw := aw
-		out = append(out, Match{Start: g[0], End: g[1], Text: text[g[0]:g[1]], date: t, hasYear: true, render: func(t time.Time) string {
+		out = append(out, Match{Start: g[0], End: g[1], Text: text[g[0]:g[1]], date: t, hasYear: true, needCtx: needCtx, render: func(t time.Time) string {
 			first, second := int(t.Month()), t.Day()
 			if dmy {
 				first, second = t.Day(), int(t.Month())
@@ -240,6 +254,7 @@ func Find(text string, order Order) []Match {
 		sub := groups(text, g)
 		wd, mon, dot, sp, day, suf, ysep, year := sub[1], sub[2], sub[3], sub[4], sub[5], sub[6], sub[7], sub[8]
 		if m, ok := build(text, g, wd, mon, day, year); ok {
+			m.needCtx = ambiguousMonthWord(mon) && mon == strings.ToLower(mon) && wd == "" && year == "" && suf == "" && !plainFollow(text, g[1]) && !hasCue(text, g[0], g[1])
 			m.render = func(t time.Time) string {
 				var b strings.Builder
 				if wd != "" {
@@ -264,6 +279,7 @@ func Find(text string, order Order) []Match {
 		sub := groups(text, g)
 		wd, day, suf, sp, mon, dot, ysep, year := sub[1], sub[2], sub[3], sub[4], sub[5], sub[6], sub[7], sub[8]
 		if m, ok := build(text, g, wd, mon, day, year); ok {
+			m.needCtx = (ambiguousMonthWord(mon) || len(mon) <= 4) && mon == strings.ToLower(mon) && wd == "" && year == "" && suf == "" && strings.TrimSpace(sp) == "" && !plainFollow(text, g[1]) && !hasCue(text, g[0], g[1])
 			m.render = func(t time.Time) string {
 				var b strings.Builder
 				if wd != "" {
@@ -285,7 +301,12 @@ func Find(text string, order Order) []Match {
 			out = append(out, m)
 		}
 	}
-	return resolve(out)
+	out = append(out, findSpoken(text)...)
+	out = append(out, findDayMonYear(text)...)
+	out = append(out, findAirline(text)...)
+	out = append(out, findCompact(text)...)
+	out = append(out, findSlash(text, order)...)
+	return settleContext(resolve(out), loose)
 }
 
 func build(text string, g []int, wd, mon, day, year string) (Match, bool) {
@@ -341,10 +362,17 @@ func resolve(ms []Match) []Match {
 }
 
 func Shift(text string, order Order, days int) string {
+	return shiftWith(text, days, Find(text, order))
+}
+
+func ShiftLoose(text string, order Order, days int) string {
+	return shiftWith(text, days, FindLoose(text, order))
+}
+
+func shiftWith(text string, days int, ms []Match) string {
 	if days == 0 {
 		return text
 	}
-	ms := Find(text, order)
 	if len(ms) == 0 {
 		return text
 	}

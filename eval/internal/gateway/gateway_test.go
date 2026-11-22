@@ -23,6 +23,7 @@ policy:
   date_shift: true
   dictionary: "/tmp/people.csv"
   entities: {date: shift, org: keep, person: mask}
+memo: {enabled: false}
 `
 	if got := c.YAML(); got != want {
 		t.Fatalf("got:\n%s\nwant:\n%s", got, want)
@@ -30,5 +31,18 @@ policy:
 	c.Dictionary = ""
 	if strings.Contains(c.YAML(), "dictionary") {
 		t.Fatal("dictionary key should be omitted when empty")
+	}
+	c.API, c.Memo = APIAnthropic, true
+	got := c.YAML()
+	for _, want := range []string{
+		`cloud: {base_url: "http://127.0.0.1:9001/v1", api_key_env: CLOUD_API_KEY, api: anthropic}`,
+		"  anthropic: {masked_upstream: cloud}\n", "memo: {enabled: true}\n",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("anthropic config missing %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "\n  masked_upstream: cloud") {
+		t.Fatalf("anthropic config must not set the top-level masked_upstream:\n%s", got)
 	}
 }

@@ -50,8 +50,9 @@ func Chat(ctx context.Context, c *http.Client, v1Base, apiKey, model string, msg
 		res.Err = fmt.Errorf("HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(b)))
 		return res
 	}
+	comment := 0
 	if stream && strings.HasPrefix(resp.Header.Get("Content-Type"), "text/event-stream") {
-		res.Content, res.Err = readStream(resp.Body, &res.Unknown)
+		res.Content, res.Err = readStream(resp.Body, &res.Unknown, &comment)
 	} else {
 		var out map[string]any
 		b, err := io.ReadAll(resp.Body)
@@ -65,18 +66,22 @@ func Chat(ctx context.Context, c *http.Client, v1Base, apiKey, model string, msg
 			res.Unknown += unknownFromBody(out)
 		}
 	}
-	res.Unknown += unknownFromHeaders(resp.Trailer)
+	res.Unknown += max(comment, unknownFromHeaders(resp.Trailer))
 	res.Latency = time.Since(start)
 	return res
 }
 
-func readStream(r io.Reader, unknown *int) (string, error) {
+func readStream(r io.Reader, unknown, comment *int) (string, error) {
 	var b strings.Builder
 	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 1024*1024), 16*1024*1024)
 	sawDone := false
 	for sc.Scan() {
 		line := strings.TrimSpace(sc.Text())
+		if n, ok := unknownFromComment(line); ok {
+			*comment += n
+			continue
+		}
 		if !strings.HasPrefix(line, "data:") {
 			continue
 		}

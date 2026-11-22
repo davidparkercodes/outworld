@@ -37,7 +37,7 @@ func BuildEngine(cfg *config.Config) (*outworld.Engine, error) {
 	if err != nil {
 		return nil, err
 	}
-	opts := outworld.Options{Vault: v, Policy: pol}
+	opts := outworld.Options{Vault: v, Policy: pol, MemoBytes: cfg.MemoBytes()}
 	if cfg.Policy.Dictionary != "" {
 		d, err := detect.LoadDictionary(cfg.Resolve(cfg.Policy.Dictionary))
 		if err != nil {

@@ -77,6 +77,7 @@ func (s *Shim) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok")) })
 	mux.HandleFunc("POST /v1/chat/completions", s.chat)
+	mux.HandleFunc("POST /v1/messages", s.messages)
 	return mux
 }
 
@@ -134,4 +135,87 @@ func (s *Shim) chat(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "data: %s\n\n", b)
 	}
 	fmt.Fprint(w, "data: [DONE]\n\n")
+}
+
+func (s *Shim) maskContent(v any) any {
+	switch t := v.(type) {
+	case string:
+		return s.mask.Replace(t)
+	case []any:
+		for _, b := range t {
+			bm, _ := b.(map[string]any)
+			if txt, ok := bm["text"].(string); ok {
+				bm["text"] = s.mask.Replace(txt)
+			}
+		}
+	}
+	return v
+}
+
+func (s *Shim) messages(w http.ResponseWriter, r *http.Request) {
+	var req map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	stream, _ := req["stream"].(bool)
+	req["stream"] = false
+	if s.mask != nil {
+		if sys, ok := req["system"]; ok {
+			req["system"] = s.maskContent(sys)
+		}
+		msgs, _ := req["messages"].([]any)
+		for _, m := range msgs {
+			if mm, ok := m.(map[string]any); ok {
+				mm["content"] = s.maskContent(mm["content"])
+			}
+		}
+	}
+	body, _ := json.Marshal(req)
+	up, err := http.NewRequestWithContext(r.Context(), http.MethodPost, strings.TrimRight(s.UpstreamV1, "/")+"/messages", bytes.NewReader(body))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	up.Header.Set("Content-Type", "application/json")
+	up.Header.Set("anthropic-version", r.Header.Get("anthropic-version"))
+	resp, err := http.DefaultClient.Do(up)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(resp.Body)
+	var out struct {
+		Model   string `json:"model"`
+		Content []struct {
+			Type string `json:"type"`
+			Text string `json:"text"`
+		} `json:"content"`
+		Usage struct {
+			InputTokens int `json:"input_tokens"`
+		} `json:"usage"`
+	}
+	if err := json.Unmarshal(raw, &out); err != nil {
+		http.Error(w, "bad upstream response", http.StatusBadGateway)
+		return
+	}
+	var sb strings.Builder
+	for _, c := range out.Content {
+		if c.Type == "text" {
+			sb.WriteString(c.Text)
+		}
+	}
+	content := sb.String()
+	if s.unmask != nil {
+		content = s.unmask.Replace(content)
+	}
+	if stream {
+		upstream.StreamMessage(w, out.Model, content, out.Usage.InputTokens)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	enc := json.NewEncoder(w)
+	enc.SetEscapeHTML(false)
+	_ = enc.Encode(upstream.MessageBody(out.Model, content, out.Usage.InputTokens))
 }
