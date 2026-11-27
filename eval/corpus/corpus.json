@@ -728,7 +728,7 @@
         },
         {
           "role": "user",
-          "content": "From: Greywillow Property Management Accounts <no-reply@greywillow.example>\nTo: w.ashgrove@stonebridge.example\nDate: Thu, 9 Jul 2026 10:47\nSubject: Your verification code\n\nHi Will,\n\nYour verification code is 472521. It expires in 10 minutes.\n\nIf you asked to reset your password, use this link: https://accounts.greywillow.example/reset-password?token=qlXkbsZRnHvzqcgSEAHmBy1DIlZ9KJxQ&uid=505938\n\nIf this wasn't you, call us at 1-800-555-0199.\n\n---\n\nFrom: Will Ashgrove <w.ashgrove@stonebridge.example>\nTo: Ingrid Achterberg <Ingrid.Achterberg@tidewater-robotics.example>\nDate: Thu, 9 Jul 2026 11:07\nSubject: Fwd: Your verification code\n\nSterling work on the draft, by the way. Ingrid, I keep getting these codes and I didn't ask for them. My temporary password was Tundra$Tundra85 and I changed it on Thursday, July 9. Also, the deploy script still has this in it:\n\n    export API_KEY=sk-Vt2cQHbLvW9THGN5Tx3TzHHBAQ3XUKP45PPldpZvV4Zcibck\n\nCan you rotate it? Thanks, WILL ASHGROVE"
+          "content": "From: Greywillow Property Management Accounts <no-reply@greywillow.example>\nTo: w.ashgrove@stonebridge.example\nDate: Thu, 9 Jul 2026 10:47\nSubject: Your verification code\n\nHi Will,\n\nYour verification code is 472521. It expires in 10 minutes.\n\nIf you asked to reset your password, use this link: https://accounts.greywillow.example/reset-password?token=qlXkbsZRnHvzqcgSEAHmBy1DIlZ9KJxQ&uid=505938\n\nIf this wasn't you, call us at 1-800-555-0199.\n\n---\n\nFrom: Will Ashgrove <w.ashgrove@stonebridge.example>\nTo: Ingrid Achterberg <Ingrid.Achterberg@tidewater-robotics.example>\nDate: Thu, 9 Jul 2026 11:07\nSubject: Fwd: Your verification code\n\nSterling work on the draft, by the way. Ingrid, I keep getting these codes and I didn't ask for them. My temporary password was Tundra$Tundra85 and I changed it on Thursday, July 9. Also, the deploy script still has this in it:\n\n    export API_KEY=sk\u002dVt2cQHbLvW9THGN5Tx3TzHHBAQ3XUKP45PPldpZvV4Zcibck\n\nCan you rotate it? Thanks, WILL ASHGROVE"
         }
       ],
       "spans": [
@@ -879,8 +879,8 @@
           "start": 886,
           "end": 937,
           "type": "secret",
-          "value": "sk-Vt2cQHbLvW9THGN5Tx3TzHHBAQ3XUKP45PPldpZvV4Zcibck",
-          "canonical": "sk-Vt2cQHbLvW9THGN5Tx3TzHHBAQ3XUKP45PPldpZvV4Zcibck",
+          "value": "sk\u002dVt2cQHbLvW9THGN5Tx3TzHHBAQ3XUKP45PPldpZvV4Zcibck",
+          "canonical": "sk\u002dVt2cQHbLvW9THGN5Tx3TzHHBAQ3XUKP45PPldpZvV4Zcibck",
           "variant": "sk-key"
         },
         {
@@ -1655,7 +1655,7 @@
         },
         {
           "role": "user",
-          "content": "## Incident review 2026-01-10\n\nONCALL: MARK FENNIMORE\nINCIDENT LEAD: PENNY STRATHEARN\n\nTimeline (Brightfen Software, Montreal region):\n\n- Jan 10 02:14 UTC: Mark paged by the error budget alert.\n- 02:31: delphine found the expired credential: `sk-MlMPvaqfGoa7NGnjYjZYDy9HFaCtYiofQmnSkcXCeyF6m8Eq`.\n- 03:05: rotated and redeployed.\n\nOwner pages: https://wiki.brightfen.example/people/mark-fennimore and https://wiki.brightfen.example/people/delphine-ilunga\n\nFollow-up owner: **Penny** Strathearn (penny@bramblecrest.example). The bill for the summer session is attached."
+          "content": "## Incident review 2026-01-10\n\nONCALL: MARK FENNIMORE\nINCIDENT LEAD: PENNY STRATHEARN\n\nTimeline (Brightfen Software, Montreal region):\n\n- Jan 10 02:14 UTC: Mark paged by the error budget alert.\n- 02:31: delphine found the expired credential: `sk\u002dMlMPvaqfGoa7NGnjYjZYDy9HFaCtYiofQmnSkcXCeyF6m8Eq`.\n- 03:05: rotated and redeployed.\n\nOwner pages: https://wiki.brightfen.example/people/mark-fennimore and https://wiki.brightfen.example/people/delphine-ilunga\n\nFollow-up owner: **Penny** Strathearn (penny@bramblecrest.example). The bill for the summer session is attached."
         }
       ],
       "spans": [
@@ -1742,8 +1742,8 @@
           "start": 243,
           "end": 294,
           "type": "secret",
-          "value": "sk-MlMPvaqfGoa7NGnjYjZYDy9HFaCtYiofQmnSkcXCeyF6m8Eq",
-          "canonical": "sk-MlMPvaqfGoa7NGnjYjZYDy9HFaCtYiofQmnSkcXCeyF6m8Eq",
+          "value": "sk\u002dMlMPvaqfGoa7NGnjYjZYDy9HFaCtYiofQmnSkcXCeyF6m8Eq",
+          "canonical": "sk\u002dMlMPvaqfGoa7NGnjYjZYDy9HFaCtYiofQmnSkcXCeyF6m8Eq",
           "variant": "sk-key"
         },
         {
@@ -3157,7 +3157,7 @@
         },
         {
           "role": "user",
-          "content": "From: Copperline Logistics Accounts <no-reply@copperline.example>\nTo: ximena_vasquezferro@mail.example\nDate: Wed, 10 Jun 2026 17:27\nSubject: Your verification code\n\nHi Ximena,\n\nYour verification code is 961166. It expires in 10 minutes.\n\nIf you asked to reset your password, use this link: https://accounts.copperline.example/reset-password?token=rmHZi2JVVqtPrFMcOWnXbboynznupfSs&uid=615810\n\nIf this wasn't you, call us at 1-800-555-0199.\n\n---\n\nFrom: Ximena Vasquez-Ferro <Ximena.Vasquezferro@bramblecrest.example>\nTo: Sterling Adeyemi-Cole <s.adeyemicole@kettlebrook.example>\nDate: Wed, 10 Jun 2026 17:47\nSubject: Fwd: Your verification code\n\nThe grant paperwork may slip a week. Sterling, I keep getting these codes and I didn't ask for them. My temporary password was Kettle!Fable11 and I changed it on Jun 10, 2026. Also, the deploy script still has this in it:\n\n    export API_KEY=AKIAMS46AVBYGG6LYUXM\n\nCan you rotate it? Thanks, Ximena Vasquez-Ferro"
+          "content": "From: Copperline Logistics Accounts <no-reply@copperline.example>\nTo: ximena_vasquezferro@mail.example\nDate: Wed, 10 Jun 2026 17:27\nSubject: Your verification code\n\nHi Ximena,\n\nYour verification code is 961166. It expires in 10 minutes.\n\nIf you asked to reset your password, use this link: https://accounts.copperline.example/reset-password?token=rmHZi2JVVqtPrFMcOWnXbboynznupfSs&uid=615810\n\nIf this wasn't you, call us at 1-800-555-0199.\n\n---\n\nFrom: Ximena Vasquez-Ferro <Ximena.Vasquezferro@bramblecrest.example>\nTo: Sterling Adeyemi-Cole <s.adeyemicole@kettlebrook.example>\nDate: Wed, 10 Jun 2026 17:47\nSubject: Fwd: Your verification code\n\nThe grant paperwork may slip a week. Sterling, I keep getting these codes and I didn't ask for them. My temporary password was Kettle!Fable11 and I changed it on Jun 10, 2026. Also, the deploy script still has this in it:\n\n    export API_KEY=AK\u0049AMS46AVBYGG6LYUXM\n\nCan you rotate it? Thanks, Ximena Vasquez-Ferro"
         }
       ],
       "spans": [
@@ -3313,8 +3313,8 @@
           "start": 886,
           "end": 906,
           "type": "secret",
-          "value": "AKIAMS46AVBYGG6LYUXM",
-          "canonical": "AKIAMS46AVBYGG6LYUXM",
+          "value": "AK\u0049AMS46AVBYGG6LYUXM",
+          "canonical": "AK\u0049AMS46AVBYGG6LYUXM",
           "variant": "aws-key-id"
         },
         {
@@ -5587,7 +5587,7 @@
         },
         {
           "role": "user",
-          "content": "From: Copperline Logistics Accounts <no-reply@copperline.example>\nTo: art@fernhollow.example\nDate: Fri, 10 Jul 2026 16:47\nSubject: Your verification code\n\nHi Art,\n\nYour verification code is 438467. It expires in 10 minutes.\n\nIf you asked to reset your password, use this link: https://accounts.copperline.example/reset-password?token=2DACYwtIefr9qA4kPU3o25MUl2CPd4mM&uid=979085\n\nIf this wasn't you, call us at 1-800-555-0199.\n\n---\n\nFrom: Art Velasquez-Moor <art@fernhollow.example>\nTo: Grant Okonedo-Hale <gokonedohale81@mail.example>\nDate: Fri, 10 Jul 2026 17:07\nSubject: Fwd: Your verification code\n\nNo need to chase this one. Grant, I keep getting these codes and I didn't ask for them. My temporary password was Saffron@Lichen47 and I changed it on 2026-07-10. Also, the deploy script still has this in it:\n\n    export API_KEY=sk-oqHHFkIEG6ShPQWM4nJVq61MD1s0mGLg6HQNnTP2yT88bTQN\n\nCan you rotate it? Thanks, Mr. Velasquez-Moor"
+          "content": "From: Copperline Logistics Accounts <no-reply@copperline.example>\nTo: art@fernhollow.example\nDate: Fri, 10 Jul 2026 16:47\nSubject: Your verification code\n\nHi Art,\n\nYour verification code is 438467. It expires in 10 minutes.\n\nIf you asked to reset your password, use this link: https://accounts.copperline.example/reset-password?token=2DACYwtIefr9qA4kPU3o25MUl2CPd4mM&uid=979085\n\nIf this wasn't you, call us at 1-800-555-0199.\n\n---\n\nFrom: Art Velasquez-Moor <art@fernhollow.example>\nTo: Grant Okonedo-Hale <gokonedohale81@mail.example>\nDate: Fri, 10 Jul 2026 17:07\nSubject: Fwd: Your verification code\n\nNo need to chase this one. Grant, I keep getting these codes and I didn't ask for them. My temporary password was Saffron@Lichen47 and I changed it on 2026-07-10. Also, the deploy script still has this in it:\n\n    export API_KEY=sk\u002doqHHFkIEG6ShPQWM4nJVq61MD1s0mGLg6HQNnTP2yT88bTQN\n\nCan you rotate it? Thanks, Mr. Velasquez-Moor"
         }
       ],
       "spans": [
@@ -5742,8 +5742,8 @@
           "start": 831,
           "end": 882,
           "type": "secret",
-          "value": "sk-oqHHFkIEG6ShPQWM4nJVq61MD1s0mGLg6HQNnTP2yT88bTQN",
-          "canonical": "sk-oqHHFkIEG6ShPQWM4nJVq61MD1s0mGLg6HQNnTP2yT88bTQN",
+          "value": "sk\u002doqHHFkIEG6ShPQWM4nJVq61MD1s0mGLg6HQNnTP2yT88bTQN",
+          "canonical": "sk\u002doqHHFkIEG6ShPQWM4nJVq61MD1s0mGLg6HQNnTP2yT88bTQN",
           "variant": "sk-key"
         },
         {
@@ -6520,7 +6520,7 @@
         },
         {
           "role": "user",
-          "content": "## Incident review 2026-01-22\n\nONCALL: ABELARD ASHDOWN\nINCIDENT LEAD: YUSRA PELLUCIDI\n\nTimeline (Brightfen Software, Halifax region):\n\n- Jan 22 02:14 UTC: Abelard paged by the error budget alert.\n- 02:31: osric found the expired credential: `ghp_uvpbrADT4MT3nkTcWfenQm6nKGlEOkSRO076`.\n- 03:05: rotated and redeployed.\n\nOwner pages: https://wiki.brightfen.example/people/abelard-ashdown and https://wiki.brightfen.example/people/osric-pemberton-oake\n\nFollow-up owner: **Yusra** Pellucidi (yusra.pellucidi@brightfen.example). To be frank, the art budget is thin."
+          "content": "## Incident review 2026-01-22\n\nONCALL: ABELARD ASHDOWN\nINCIDENT LEAD: YUSRA PELLUCIDI\n\nTimeline (Brightfen Software, Halifax region):\n\n- Jan 22 02:14 UTC: Abelard paged by the error budget alert.\n- 02:31: osric found the expired credential: `ghp\u005fuvpbrADT4MT3nkTcWfenQm6nKGlEOkSRO076`.\n- 03:05: rotated and redeployed.\n\nOwner pages: https://wiki.brightfen.example/people/abelard-ashdown and https://wiki.brightfen.example/people/osric-pemberton-oake\n\nFollow-up owner: **Yusra** Pellucidi (yusra.pellucidi@brightfen.example). To be frank, the art budget is thin."
         }
       ],
       "spans": [
@@ -6607,8 +6607,8 @@
           "start": 242,
           "end": 282,
           "type": "secret",
-          "value": "ghp_uvpbrADT4MT3nkTcWfenQm6nKGlEOkSRO076",
-          "canonical": "ghp_uvpbrADT4MT3nkTcWfenQm6nKGlEOkSRO076",
+          "value": "ghp\u005fuvpbrADT4MT3nkTcWfenQm6nKGlEOkSRO076",
+          "canonical": "ghp\u005fuvpbrADT4MT3nkTcWfenQm6nKGlEOkSRO076",
           "variant": "github-token"
         },
         {
@@ -8020,7 +8020,7 @@
         },
         {
           "role": "user",
-          "content": "From: Fernhollow Youth Orchestra Accounts <no-reply@fernhollow.example>\nTo: emeka.rautio@greywillow.example\nDate: Mon, 26 Jan 2026 15:26\nSubject: Your verification code\n\nHi Emeka,\n\nYour verification code is 348809. It expires in 10 minutes.\n\nIf you asked to reset your password, use this link: https://accounts.fernhollow.example/reset-password?token=808WlIN2uSGdVpXg9bfkebaLT0YaV7Zc&uid=425460\n\nIf this wasn't you, call us at 1-800-555-0199.\n\n---\n\nFrom: Emeka Rautio <erautio31@mail.example>\nTo: Saoirse Nakashima-Blythe <nakashimablythe.saoirse@example.org>\nDate: Mon, 26 Jan 2026 15:46\nSubject: Fwd: Your verification code\n\nWill you confirm when you can? Saoirse, I keep getting these codes and I didn't ask for them. My temporary password was Brine$Lichen08 and I changed it on January 26, 2026. Also, the deploy script still has this in it:\n\n    export API_KEY=AKIAU7WKY26T2UMTY3BB\n\nCan you rotate it? Thanks, emeka"
+          "content": "From: Fernhollow Youth Orchestra Accounts <no-reply@fernhollow.example>\nTo: emeka.rautio@greywillow.example\nDate: Mon, 26 Jan 2026 15:26\nSubject: Your verification code\n\nHi Emeka,\n\nYour verification code is 348809. It expires in 10 minutes.\n\nIf you asked to reset your password, use this link: https://accounts.fernhollow.example/reset-password?token=808WlIN2uSGdVpXg9bfkebaLT0YaV7Zc&uid=425460\n\nIf this wasn't you, call us at 1-800-555-0199.\n\n---\n\nFrom: Emeka Rautio <erautio31@mail.example>\nTo: Saoirse Nakashima-Blythe <nakashimablythe.saoirse@example.org>\nDate: Mon, 26 Jan 2026 15:46\nSubject: Fwd: Your verification code\n\nWill you confirm when you can? Saoirse, I keep getting these codes and I didn't ask for them. My temporary password was Brine$Lichen08 and I changed it on January 26, 2026. Also, the deploy script still has this in it:\n\n    export API_KEY=AK\u0049AU7WKY26T2UMTY3BB\n\nCan you rotate it? Thanks, emeka"
         }
       ],
       "spans": [
@@ -8175,8 +8175,8 @@
           "start": 866,
           "end": 886,
           "type": "secret",
-          "value": "AKIAU7WKY26T2UMTY3BB",
-          "canonical": "AKIAU7WKY26T2UMTY3BB",
+          "value": "AK\u0049AU7WKY26T2UMTY3BB",
+          "canonical": "AK\u0049AU7WKY26T2UMTY3BB",
           "variant": "aws-key-id"
         },
         {
@@ -10458,7 +10458,7 @@
         },
         {
           "role": "user",
-          "content": "From: Brightfen Software Accounts <no-reply@brightfen.example>\nTo: m.vargaholm@ivorygate.example\nDate: Tue, 22 Sep 2026 15:17\nSubject: Your verification code\n\nHi Mireille,\n\nYour verification code is 927967. It expires in 10 minutes.\n\nIf you asked to reset your password, use this link: https://accounts.brightfen.example/reset-password?token=9G4dMLC6wvpXgflowatGYOjcq7gh00DS&uid=711634\n\nIf this wasn't you, call us at 1-800-555-0199.\n\n---\n\nFrom: Mireille Varga-Holm <m.vargaholm@ivorygate.example>\nTo: Summer Ekwueme <summer_ekwueme@inbox.example>\nDate: Tue, 22 Sep 2026 15:37\nSubject: Fwd: Your verification code\n\nWill you confirm when you can? Summer, I keep getting these codes and I didn't ask for them. My temporary password was Kettle#Tundra14 and I changed it on 22 September 2026. Also, the deploy script still has this in it:\n\n    export API_KEY=sk-15VPZuFDB0dM4yClQygMpAyTblYS1JKFtFe5YvudhvlUOvHd\n\nCan you rotate it? Thanks, mireille"
+          "content": "From: Brightfen Software Accounts <no-reply@brightfen.example>\nTo: m.vargaholm@ivorygate.example\nDate: Tue, 22 Sep 2026 15:17\nSubject: Your verification code\n\nHi Mireille,\n\nYour verification code is 927967. It expires in 10 minutes.\n\nIf you asked to reset your password, use this link: https://accounts.brightfen.example/reset-password?token=9G4dMLC6wvpXgflowatGYOjcq7gh00DS&uid=711634\n\nIf this wasn't you, call us at 1-800-555-0199.\n\n---\n\nFrom: Mireille Varga-Holm <m.vargaholm@ivorygate.example>\nTo: Summer Ekwueme <summer_ekwueme@inbox.example>\nDate: Tue, 22 Sep 2026 15:37\nSubject: Fwd: Your verification code\n\nWill you confirm when you can? Summer, I keep getting these codes and I didn't ask for them. My temporary password was Kettle#Tundra14 and I changed it on 22 September 2026. Also, the deploy script still has this in it:\n\n    export API_KEY=sk\u002d15VPZuFDB0dM4yClQygMpAyTblYS1JKFtFe5YvudhvlUOvHd\n\nCan you rotate it? Thanks, mireille"
         }
       ],
       "spans": [
@@ -10614,8 +10614,8 @@
           "start": 855,
           "end": 906,
           "type": "secret",
-          "value": "sk-15VPZuFDB0dM4yClQygMpAyTblYS1JKFtFe5YvudhvlUOvHd",
-          "canonical": "sk-15VPZuFDB0dM4yClQygMpAyTblYS1JKFtFe5YvudhvlUOvHd",
+          "value": "sk\u002d15VPZuFDB0dM4yClQygMpAyTblYS1JKFtFe5YvudhvlUOvHd",
+          "canonical": "sk\u002d15VPZuFDB0dM4yClQygMpAyTblYS1JKFtFe5YvudhvlUOvHd",
           "variant": "sk-key"
         },
         {
@@ -11389,7 +11389,7 @@
         },
         {
           "role": "user",
-          "content": "## Incident review 2026-04-07\n\nONCALL: DELPHINE ILUNGA\nINCIDENT LEAD: CHASE NWANKWO-BELL\n\nTimeline (Brightfen Software, Lisbon region):\n\n- Apr 7 02:14 UTC: Delphine paged by the error budget alert.\n- 02:31: will found the expired credential: `AKIAURSNSUJAOYHDNUMK`.\n- 03:05: rotated and redeployed.\n\nOwner pages: https://wiki.brightfen.example/people/delphine-ilunga and https://wiki.brightfen.example/people/will-ashgrove\n\nFollow-up owner: **Chase** Nwankwo-Bell (chase@kettlebrook.example). No need to chase this one."
+          "content": "## Incident review 2026-04-07\n\nONCALL: DELPHINE ILUNGA\nINCIDENT LEAD: CHASE NWANKWO-BELL\n\nTimeline (Brightfen Software, Lisbon region):\n\n- Apr 7 02:14 UTC: Delphine paged by the error budget alert.\n- 02:31: will found the expired credential: `AK\u0049AURSNSUJAOYHDNUMK`.\n- 03:05: rotated and redeployed.\n\nOwner pages: https://wiki.brightfen.example/people/delphine-ilunga and https://wiki.brightfen.example/people/will-ashgrove\n\nFollow-up owner: **Chase** Nwankwo-Bell (chase@kettlebrook.example). No need to chase this one."
         }
       ],
       "spans": [
@@ -11476,8 +11476,8 @@
           "start": 243,
           "end": 263,
           "type": "secret",
-          "value": "AKIAURSNSUJAOYHDNUMK",
-          "canonical": "AKIAURSNSUJAOYHDNUMK",
+          "value": "AK\u0049AURSNSUJAOYHDNUMK",
+          "canonical": "AK\u0049AURSNSUJAOYHDNUMK",
           "variant": "aws-key-id"
         },
         {
@@ -13807,7 +13807,7 @@
         },
         {
           "role": "user",
-          "content": "## Incident review 2026-10-03\n\nONCALL: ART VELASQUEZ-MOOR\nINCIDENT LEAD: BILL CARRAWAY\n\nTimeline (Brightfen Software, Ghent region):\n\n- Oct 3 02:14 UTC: Art paged by the error budget alert.\n- 02:31: marisol found the expired credential: `ghp_X74nb5mQTiKyqVI8n1G8FecgsCMPiBvisIpx`.\n- 03:05: rotated and redeployed.\n\nOwner pages: https://wiki.brightfen.example/people/art-velasquez-moor and https://wiki.brightfen.example/people/marisol-quenby\n\nFollow-up owner: **Bill** Carraway (bill.carraway@copperline.example). Every penny counts this year."
+          "content": "## Incident review 2026-10-03\n\nONCALL: ART VELASQUEZ-MOOR\nINCIDENT LEAD: BILL CARRAWAY\n\nTimeline (Brightfen Software, Ghent region):\n\n- Oct 3 02:14 UTC: Art paged by the error budget alert.\n- 02:31: marisol found the expired credential: `ghp\u005fX74nb5mQTiKyqVI8n1G8FecgsCMPiBvisIpx`.\n- 03:05: rotated and redeployed.\n\nOwner pages: https://wiki.brightfen.example/people/art-velasquez-moor and https://wiki.brightfen.example/people/marisol-quenby\n\nFollow-up owner: **Bill** Carraway (bill.carraway@copperline.example). Every penny counts this year."
         }
       ],
       "spans": [
@@ -13894,8 +13894,8 @@
           "start": 238,
           "end": 278,
           "type": "secret",
-          "value": "ghp_X74nb5mQTiKyqVI8n1G8FecgsCMPiBvisIpx",
-          "canonical": "ghp_X74nb5mQTiKyqVI8n1G8FecgsCMPiBvisIpx",
+          "value": "ghp\u005fX74nb5mQTiKyqVI8n1G8FecgsCMPiBvisIpx",
+          "canonical": "ghp\u005fX74nb5mQTiKyqVI8n1G8FecgsCMPiBvisIpx",
           "variant": "github-token"
         },
         {
@@ -15306,7 +15306,7 @@
         },
         {
           "role": "user",
-          "content": "From: Saltmarsh Insurance Group Accounts <no-reply@saltmarsh-ins.example>\nTo: thaddeus@greywillow.example\nDate: Sat, 22 Aug 2026 08:07\nSubject: Your verification code\n\nHi Thaddeus,\n\nYour verification code is 479688. It expires in 10 minutes.\n\nIf you asked to reset your password, use this link: https://accounts.saltmarsh-ins.example/reset-password?token=xb62QcbpWy9bQ3cEpbTcngd94cNoDDN3&uid=452227\n\nIf this wasn't you, call us at 1-800-555-0199.\n\n---\n\nFrom: Thaddeus Wexley <wexley.thaddeus@mail.example>\nTo: Joy Halloran-Pike <joy.halloranpike@lanternfish.example>\nDate: Sat, 22 Aug 2026 08:27\nSubject: Fwd: Your verification code\n\nCosts rose again this quarter. Joy, I keep getting these codes and I didn't ask for them. My temporary password was Saffron%Saffron24 and I changed it on Saturday, August 22. Also, the deploy script still has this in it:\n\n    export API_KEY=ghp_sV3AFFumQTJZwck6mllhmQQ0foQJ0UOOigCO\n\nCan you rotate it? Thanks, Mr. Wexley"
+          "content": "From: Saltmarsh Insurance Group Accounts <no-reply@saltmarsh-ins.example>\nTo: thaddeus@greywillow.example\nDate: Sat, 22 Aug 2026 08:07\nSubject: Your verification code\n\nHi Thaddeus,\n\nYour verification code is 479688. It expires in 10 minutes.\n\nIf you asked to reset your password, use this link: https://accounts.saltmarsh-ins.example/reset-password?token=xb62QcbpWy9bQ3cEpbTcngd94cNoDDN3&uid=452227\n\nIf this wasn't you, call us at 1-800-555-0199.\n\n---\n\nFrom: Thaddeus Wexley <wexley.thaddeus@mail.example>\nTo: Joy Halloran-Pike <joy.halloranpike@lanternfish.example>\nDate: Sat, 22 Aug 2026 08:27\nSubject: Fwd: Your verification code\n\nCosts rose again this quarter. Joy, I keep getting these codes and I didn't ask for them. My temporary password was Saffron%Saffron24 and I changed it on Saturday, August 22. Also, the deploy script still has this in it:\n\n    export API_KEY=ghp\u005fsV3AFFumQTJZwck6mllhmQQ0foQJ0UOOigCO\n\nCan you rotate it? Thanks, Mr. Wexley"
         }
       ],
       "spans": [
@@ -15457,8 +15457,8 @@
           "start": 875,
           "end": 915,
           "type": "secret",
-          "value": "ghp_sV3AFFumQTJZwck6mllhmQQ0foQJ0UOOigCO",
-          "canonical": "ghp_sV3AFFumQTJZwck6mllhmQQ0foQJ0UOOigCO",
+          "value": "ghp\u005fsV3AFFumQTJZwck6mllhmQQ0foQJ0UOOigCO",
+          "canonical": "ghp\u005fsV3AFFumQTJZwck6mllhmQQ0foQJ0UOOigCO",
           "variant": "github-token"
         },
         {
@@ -16233,7 +16233,7 @@
         },
         {
           "role": "user",
-          "content": "## Incident review 2026-02-09\n\nONCALL: INES OKAFOR-LIND\nINCIDENT LEAD: CALLUM THISTLEWOOD\n\nTimeline (Brightfen Software, Nairobi region):\n\n- Feb 9 02:14 UTC: Ines paged by the error budget alert.\n- 02:31: juniper found the expired credential: `AKIARNTYYKBLREFSVX6S`.\n- 03:05: rotated and redeployed.\n\nOwner pages: https://wiki.brightfen.example/people/ines-okafor-lind and https://wiki.brightfen.example/people/juniper-odell\n\nFollow-up owner: **Callum** Thistlewood (callum_thistlewood@inbox.example). The grant paperwork may slip a week."
+          "content": "## Incident review 2026-02-09\n\nONCALL: INES OKAFOR-LIND\nINCIDENT LEAD: CALLUM THISTLEWOOD\n\nTimeline (Brightfen Software, Nairobi region):\n\n- Feb 9 02:14 UTC: Ines paged by the error budget alert.\n- 02:31: juniper found the expired credential: `AK\u0049ARNTYYKBLREFSVX6S`.\n- 03:05: rotated and redeployed.\n\nOwner pages: https://wiki.brightfen.example/people/ines-okafor-lind and https://wiki.brightfen.example/people/juniper-odell\n\nFollow-up owner: **Callum** Thistlewood (callum_thistlewood@inbox.example). The grant paperwork may slip a week."
         }
       ],
       "spans": [
@@ -16320,8 +16320,8 @@
           "start": 244,
           "end": 264,
           "type": "secret",
-          "value": "AKIARNTYYKBLREFSVX6S",
-          "canonical": "AKIARNTYYKBLREFSVX6S",
+          "value": "AK\u0049ARNTYYKBLREFSVX6S",
+          "canonical": "AK\u0049ARNTYYKBLREFSVX6S",
           "variant": "aws-key-id"
         },
         {
@@ -17734,7 +17734,7 @@
         },
         {
           "role": "user",
-          "content": "From: Tidewater Robotics Accounts <no-reply@tidewater-robotics.example>\nTo: art@fernhollow.example\nDate: Mon, 19 Jan 2026 17:54\nSubject: Your verification code\n\nHi Art,\n\nYour verification code is 313455. It expires in 10 minutes.\n\nIf you asked to reset your password, use this link: https://accounts.tidewater-robotics.example/reset-password?token=4fR1V3dyY5NlSWZSyn2EZdQfuktsM9xe&uid=215806\n\nIf this wasn't you, call us at 1-800-555-0199.\n\n---\n\nFrom: Art Velasquez-Moor <velasquezmoor.art@mail.example>\nTo: Ravindra Lindqvist <ravindra@bramblecrest.example>\nDate: Mon, 19 Jan 2026 18:14\nSubject: Fwd: Your verification code\n\nThere is a grace period of ten days. Ravindra, I keep getting these codes and I didn't ask for them. My temporary password was Quartz!Cobalt12 and I changed it on Monday, January 19. Also, the deploy script still has this in it:\n\n    export API_KEY=ghp_G2HfNTApGEqDij3QKQDqGkXEV9GAFzR6OkQH\n\nCan you rotate it? Thanks, Art"
+          "content": "From: Tidewater Robotics Accounts <no-reply@tidewater-robotics.example>\nTo: art@fernhollow.example\nDate: Mon, 19 Jan 2026 17:54\nSubject: Your verification code\n\nHi Art,\n\nYour verification code is 313455. It expires in 10 minutes.\n\nIf you asked to reset your password, use this link: https://accounts.tidewater-robotics.example/reset-password?token=4fR1V3dyY5NlSWZSyn2EZdQfuktsM9xe&uid=215806\n\nIf this wasn't you, call us at 1-800-555-0199.\n\n---\n\nFrom: Art Velasquez-Moor <velasquezmoor.art@mail.example>\nTo: Ravindra Lindqvist <ravindra@bramblecrest.example>\nDate: Mon, 19 Jan 2026 18:14\nSubject: Fwd: Your verification code\n\nThere is a grace period of ten days. Ravindra, I keep getting these codes and I didn't ask for them. My temporary password was Quartz!Cobalt12 and I changed it on Monday, January 19. Also, the deploy script still has this in it:\n\n    export API_KEY=ghp\u005fG2HfNTApGEqDij3QKQDqGkXEV9GAFzR6OkQH\n\nCan you rotate it? Thanks, Art"
         }
       ],
       "spans": [
@@ -17885,8 +17885,8 @@
           "start": 875,
           "end": 915,
           "type": "secret",
-          "value": "ghp_G2HfNTApGEqDij3QKQDqGkXEV9GAFzR6OkQH",
-          "canonical": "ghp_G2HfNTApGEqDij3QKQDqGkXEV9GAFzR6OkQH",
+          "value": "ghp\u005fG2HfNTApGEqDij3QKQDqGkXEV9GAFzR6OkQH",
+          "canonical": "ghp\u005fG2HfNTApGEqDij3QKQDqGkXEV9GAFzR6OkQH",
           "variant": "github-token"
         },
         {
@@ -23525,7 +23525,7 @@
         },
         {
           "role": "user",
-          "content": "## Incident review 2026-12-11\n\nONCALL: ANSELM HOLLOWELL\nINCIDENT LEAD: FRANK OSTERGAARD\n\nTimeline (Brightfen Software, Kyoto region):\n\n- Dec 11 02:14 UTC: Anselm paged by the error budget alert.\n- 02:31: leocadia found the expired credential: `sk-o6zRlvdNw5DHTCRDYO9cQqiiXaiyTm4BuiHzOsJoWBaFo1g4`.\n- 03:05: rotated and redeployed.\n\nOwner pages: https://wiki.brightfen.example/people/anselm-hollowell and https://wiki.brightfen.example/people/leocadia-brannigan\n\nFollow-up owner: **Frank** Ostergaard (frank.ostergaard@brightfen.example). Costs rose again this quarter."
+          "content": "## Incident review 2026-12-11\n\nONCALL: ANSELM HOLLOWELL\nINCIDENT LEAD: FRANK OSTERGAARD\n\nTimeline (Brightfen Software, Kyoto region):\n\n- Dec 11 02:14 UTC: Anselm paged by the error budget alert.\n- 02:31: leocadia found the expired credential: `sk\u002do6zRlvdNw5DHTCRDYO9cQqiiXaiyTm4BuiHzOsJoWBaFo1g4`.\n- 03:05: rotated and redeployed.\n\nOwner pages: https://wiki.brightfen.example/people/anselm-hollowell and https://wiki.brightfen.example/people/leocadia-brannigan\n\nFollow-up owner: **Frank** Ostergaard (frank.ostergaard@brightfen.example). Costs rose again this quarter."
         }
       ],
       "spans": [
@@ -23612,8 +23612,8 @@
           "start": 244,
           "end": 295,
           "type": "secret",
-          "value": "sk-o6zRlvdNw5DHTCRDYO9cQqiiXaiyTm4BuiHzOsJoWBaFo1g4",
-          "canonical": "sk-o6zRlvdNw5DHTCRDYO9cQqiiXaiyTm4BuiHzOsJoWBaFo1g4",
+          "value": "sk\u002do6zRlvdNw5DHTCRDYO9cQqiiXaiyTm4BuiHzOsJoWBaFo1g4",
+          "canonical": "sk\u002do6zRlvdNw5DHTCRDYO9cQqiiXaiyTm4BuiHzOsJoWBaFo1g4",
           "variant": "sk-key"
         },
         {
@@ -25031,7 +25031,7 @@
         },
         {
           "role": "user",
-          "content": "From: Copperline Logistics Accounts <no-reply@copperline.example>\nTo: ximena_vasquezferro@mail.example\nDate: Thu, 23 Apr 2026 14:00\nSubject: Your verification code\n\nHi Ximena,\n\nYour verification code is 980423. It expires in 10 minutes.\n\nIf you asked to reset your password, use this link: https://accounts.copperline.example/reset-password?token=uKljnOGIHWhD9BrUvc8Zdu99x9kN5Bcy&uid=196056\n\nIf this wasn't you, call us at 1-800-555-0199.\n\n---\n\nFrom: Ximena Vasquez-Ferro <ximena_vasquezferro@mail.example>\nTo: Corwin Abernathy <cabernathy76@mail.example>\nDate: Thu, 23 Apr 2026 14:20\nSubject: Fwd: Your verification code\n\nTo be frank, the art budget is thin. Corwin, I keep getting these codes and I didn't ask for them. My temporary password was Juniper#Lichen71 and I changed it on the 23rd of April. Also, the deploy script still has this in it:\n\n    export API_KEY=AKIAYA4A4YJF56CKEW5J\n\nCan you rotate it? Thanks, ximena"
+          "content": "From: Copperline Logistics Accounts <no-reply@copperline.example>\nTo: ximena_vasquezferro@mail.example\nDate: Thu, 23 Apr 2026 14:00\nSubject: Your verification code\n\nHi Ximena,\n\nYour verification code is 980423. It expires in 10 minutes.\n\nIf you asked to reset your password, use this link: https://accounts.copperline.example/reset-password?token=uKljnOGIHWhD9BrUvc8Zdu99x9kN5Bcy&uid=196056\n\nIf this wasn't you, call us at 1-800-555-0199.\n\n---\n\nFrom: Ximena Vasquez-Ferro <ximena_vasquezferro@mail.example>\nTo: Corwin Abernathy <cabernathy76@mail.example>\nDate: Thu, 23 Apr 2026 14:20\nSubject: Fwd: Your verification code\n\nTo be frank, the art budget is thin. Corwin, I keep getting these codes and I didn't ask for them. My temporary password was Juniper#Lichen71 and I changed it on the 23rd of April. Also, the deploy script still has this in it:\n\n    export API_KEY=AK\u0049AYA4A4YJF56CKEW5J\n\nCan you rotate it? Thanks, ximena"
         }
       ],
       "spans": [
@@ -25182,8 +25182,8 @@
           "start": 870,
           "end": 890,
           "type": "secret",
-          "value": "AKIAYA4A4YJF56CKEW5J",
-          "canonical": "AKIAYA4A4YJF56CKEW5J",
+          "value": "AK\u0049AYA4A4YJF56CKEW5J",
+          "canonical": "AK\u0049AYA4A4YJF56CKEW5J",
           "variant": "aws-key-id"
         },
         {
@@ -27468,7 +27468,7 @@
         },
         {
           "role": "user",
-          "content": "From: Pinecrest Veterinary Clinic Accounts <no-reply@pinecrest-vet.example>\nTo: chase@kettlebrook.example\nDate: Mon, 27 Jul 2026 12:07\nSubject: Your verification code\n\nHi Chase,\n\nYour verification code is 407529. It expires in 10 minutes.\n\nIf you asked to reset your password, use this link: https://accounts.pinecrest-vet.example/reset-password?token=qnQpBB4BarOMo9VEsVBaCCtkXEgmC3rY&uid=170138\n\nIf this wasn't you, call us at 1-800-555-0199.\n\n---\n\nFrom: Chase Nwankwo-Bell <nwankwobell.chase@example.org>\nTo: Emeka Rautio <erautio31@mail.example>\nDate: Mon, 27 Jul 2026 12:27\nSubject: Fwd: Your verification code\n\nEvery penny counts this year. Emeka, I keep getting these codes and I didn't ask for them. My temporary password was Garnet+Lichen54 and I changed it on the 27th of July. Also, the deploy script still has this in it:\n\n    export API_KEY=sk-3KtqZEilGnKgZbRL2gDKv7IerUs84vYq1Qzwz1avYVWsooeD\n\nCan you rotate it? Thanks, Mr. Nwankwo-Bell"
+          "content": "From: Pinecrest Veterinary Clinic Accounts <no-reply@pinecrest-vet.example>\nTo: chase@kettlebrook.example\nDate: Mon, 27 Jul 2026 12:07\nSubject: Your verification code\n\nHi Chase,\n\nYour verification code is 407529. It expires in 10 minutes.\n\nIf you asked to reset your password, use this link: https://accounts.pinecrest-vet.example/reset-password?token=qnQpBB4BarOMo9VEsVBaCCtkXEgmC3rY&uid=170138\n\nIf this wasn't you, call us at 1-800-555-0199.\n\n---\n\nFrom: Chase Nwankwo-Bell <nwankwobell.chase@example.org>\nTo: Emeka Rautio <erautio31@mail.example>\nDate: Mon, 27 Jul 2026 12:27\nSubject: Fwd: Your verification code\n\nEvery penny counts this year. Emeka, I keep getting these codes and I didn't ask for them. My temporary password was Garnet+Lichen54 and I changed it on the 27th of July. Also, the deploy script still has this in it:\n\n    export API_KEY=sk\u002d3KtqZEilGnKgZbRL2gDKv7IerUs84vYq1Qzwz1avYVWsooeD\n\nCan you rotate it? Thanks, Mr. Nwankwo-Bell"
         }
       ],
       "spans": [
@@ -27619,8 +27619,8 @@
           "start": 853,
           "end": 904,
           "type": "secret",
-          "value": "sk-3KtqZEilGnKgZbRL2gDKv7IerUs84vYq1Qzwz1avYVWsooeD",
-          "canonical": "sk-3KtqZEilGnKgZbRL2gDKv7IerUs84vYq1Qzwz1avYVWsooeD",
+          "value": "sk\u002d3KtqZEilGnKgZbRL2gDKv7IerUs84vYq1Qzwz1avYVWsooeD",
+          "canonical": "sk\u002d3KtqZEilGnKgZbRL2gDKv7IerUs84vYq1Qzwz1avYVWsooeD",
           "variant": "sk-key"
         },
         {
@@ -28397,7 +28397,7 @@
         },
         {
           "role": "user",
-          "content": "## Incident review 2026-08-27\n\nONCALL: ART VELASQUEZ-MOOR\nINCIDENT LEAD: GRANT OKONEDO-HALE\n\nTimeline (Brightfen Software, Halifax region):\n\n- Aug 27 02:14 UTC: Art paged by the error budget alert.\n- 02:31: grace found the expired credential: `sk-yHAlWj9aJWie6uTEUfhy2ffOGhSB6YqG1azVN9txzS5ZywF2`.\n- 03:05: rotated and redeployed.\n\nOwner pages: https://wiki.brightfen.example/people/art-velasquez-moor and https://wiki.brightfen.example/people/grace-wilmot-ayer\n\nFollow-up owner: **Grant** Okonedo-Hale (grant.okonedohale@kettlebrook.example). The ivy on the north wall needs cutting back."
+          "content": "## Incident review 2026-08-27\n\nONCALL: ART VELASQUEZ-MOOR\nINCIDENT LEAD: GRANT OKONEDO-HALE\n\nTimeline (Brightfen Software, Halifax region):\n\n- Aug 27 02:14 UTC: Art paged by the error budget alert.\n- 02:31: grace found the expired credential: `sk\u002dyHAlWj9aJWie6uTEUfhy2ffOGhSB6YqG1azVN9txzS5ZywF2`.\n- 03:05: rotated and redeployed.\n\nOwner pages: https://wiki.brightfen.example/people/art-velasquez-moor and https://wiki.brightfen.example/people/grace-wilmot-ayer\n\nFollow-up owner: **Grant** Okonedo-Hale (grant.okonedohale@kettlebrook.example). The ivy on the north wall needs cutting back."
         }
       ],
       "spans": [
@@ -28484,8 +28484,8 @@
           "start": 244,
           "end": 295,
           "type": "secret",
-          "value": "sk-yHAlWj9aJWie6uTEUfhy2ffOGhSB6YqG1azVN9txzS5ZywF2",
-          "canonical": "sk-yHAlWj9aJWie6uTEUfhy2ffOGhSB6YqG1azVN9txzS5ZywF2",
+          "value": "sk\u002dyHAlWj9aJWie6uTEUfhy2ffOGhSB6YqG1azVN9txzS5ZywF2",
+          "canonical": "sk\u002dyHAlWj9aJWie6uTEUfhy2ffOGhSB6YqG1azVN9txzS5ZywF2",
           "variant": "sk-key"
         },
         {
@@ -29885,7 +29885,7 @@
         },
         {
           "role": "user",
-          "content": "From: Saltmarsh Insurance Group Accounts <no-reply@saltmarsh-ins.example>\nTo: lorcan.quillfeather@halvorsen-bio.example\nDate: Tue, 23 Jun 2026 10:34\nSubject: Your verification code\n\nHi Lorcan,\n\nYour verification code is 319706. It expires in 10 minutes.\n\nIf you asked to reset your password, use this link: https://accounts.saltmarsh-ins.example/reset-password?token=xJkyY4XTRtXfUK8FdlAcaFSegh8JYIem&uid=250274\n\nIf this wasn't you, call us at 1-800-555-0199.\n\n---\n\nFrom: Lorcan Quillfeather <lquillfeather23@mail.example>\nTo: May Lindenbrook <may.lindenbrook@brightfen.example>\nDate: Tue, 23 Jun 2026 10:54\nSubject: Fwd: Your verification code\n\nNo need to chase this one. May, I keep getting these codes and I didn't ask for them. My temporary password was Plover*Tundra47 and I changed it on Tuesday, June 23. Also, the deploy script still has this in it:\n\n    export API_KEY=sk-yJRtWQ7VSy5IpHJKfhiydlSQr0x2TaETHMLP7ouUyrAn6FqP\n\nCan you rotate it? Thanks, Mr. Quillfeather"
+          "content": "From: Saltmarsh Insurance Group Accounts <no-reply@saltmarsh-ins.example>\nTo: lorcan.quillfeather@halvorsen-bio.example\nDate: Tue, 23 Jun 2026 10:34\nSubject: Your verification code\n\nHi Lorcan,\n\nYour verification code is 319706. It expires in 10 minutes.\n\nIf you asked to reset your password, use this link: https://accounts.saltmarsh-ins.example/reset-password?token=xJkyY4XTRtXfUK8FdlAcaFSegh8JYIem&uid=250274\n\nIf this wasn't you, call us at 1-800-555-0199.\n\n---\n\nFrom: Lorcan Quillfeather <lquillfeather23@mail.example>\nTo: May Lindenbrook <may.lindenbrook@brightfen.example>\nDate: Tue, 23 Jun 2026 10:54\nSubject: Fwd: Your verification code\n\nNo need to chase this one. May, I keep getting these codes and I didn't ask for them. My temporary password was Plover*Tundra47 and I changed it on Tuesday, June 23. Also, the deploy script still has this in it:\n\n    export API_KEY=sk\u002dyJRtWQ7VSy5IpHJKfhiydlSQr0x2TaETHMLP7ouUyrAn6FqP\n\nCan you rotate it? Thanks, Mr. Quillfeather"
         }
       ],
       "spans": [
@@ -30036,8 +30036,8 @@
           "start": 877,
           "end": 928,
           "type": "secret",
-          "value": "sk-yJRtWQ7VSy5IpHJKfhiydlSQr0x2TaETHMLP7ouUyrAn6FqP",
-          "canonical": "sk-yJRtWQ7VSy5IpHJKfhiydlSQr0x2TaETHMLP7ouUyrAn6FqP",
+          "value": "sk\u002dyJRtWQ7VSy5IpHJKfhiydlSQr0x2TaETHMLP7ouUyrAn6FqP",
+          "canonical": "sk\u002dyJRtWQ7VSy5IpHJKfhiydlSQr0x2TaETHMLP7ouUyrAn6FqP",
           "variant": "sk-key"
         },
         {
@@ -30807,7 +30807,7 @@
         },
         {
           "role": "user",
-          "content": "## Incident review 2026-08-24\n\nONCALL: HOPE VALDANE\nINCIDENT LEAD: SUMMER EKWUEME\n\nTimeline (Brightfen Software, Ghent region):\n\n- Aug 24 02:14 UTC: Hope paged by the error budget alert.\n- 02:31: faith found the expired credential: `AKIA6E3344AWNTCCFWHY`.\n- 03:05: rotated and redeployed.\n\nOwner pages: https://wiki.brightfen.example/people/hope-valdane and https://wiki.brightfen.example/people/faith-morrow-quist\n\nFollow-up owner: **Summer** Ekwueme (summer_ekwueme@inbox.example). Every penny counts this year."
+          "content": "## Incident review 2026-08-24\n\nONCALL: HOPE VALDANE\nINCIDENT LEAD: SUMMER EKWUEME\n\nTimeline (Brightfen Software, Ghent region):\n\n- Aug 24 02:14 UTC: Hope paged by the error budget alert.\n- 02:31: faith found the expired credential: `AK\u0049A6E3344AWNTCCFWHY`.\n- 03:05: rotated and redeployed.\n\nOwner pages: https://wiki.brightfen.example/people/hope-valdane and https://wiki.brightfen.example/people/faith-morrow-quist\n\nFollow-up owner: **Summer** Ekwueme (summer_ekwueme@inbox.example). Every penny counts this year."
         }
       ],
       "spans": [
@@ -30894,8 +30894,8 @@
           "start": 233,
           "end": 253,
           "type": "secret",
-          "value": "AKIA6E3344AWNTCCFWHY",
-          "canonical": "AKIA6E3344AWNTCCFWHY",
+          "value": "AK\u0049A6E3344AWNTCCFWHY",
+          "canonical": "AK\u0049A6E3344AWNTCCFWHY",
           "variant": "aws-key-id"
         },
         {
@@ -33246,7 +33246,7 @@
         },
         {
           "role": "user",
-          "content": "## Incident review 2026-09-08\n\nONCALL: SAOIRSE NAKASHIMA-BLYTHE\nINCIDENT LEAD: STERLING ADEYEMI-COLE\n\nTimeline (Brightfen Software, Wellington region):\n\n- Sep 8 02:14 UTC: Saoirse paged by the error budget alert.\n- 02:31: mireille found the expired credential: `sk-kt58Z6QFOAHs4WaNWLYmCmDdrFWyEvft7Sf0M2UUGTvDpXuz`.\n- 03:05: rotated and redeployed.\n\nOwner pages: https://wiki.brightfen.example/people/saoirse-nakashima-blythe and https://wiki.brightfen.example/people/mireille-varga-holm\n\nFollow-up owner: **Sterling** Adeyemi-Cole (s.adeyemicole@kettlebrook.example). I hope the numbers hold."
+          "content": "## Incident review 2026-09-08\n\nONCALL: SAOIRSE NAKASHIMA-BLYTHE\nINCIDENT LEAD: STERLING ADEYEMI-COLE\n\nTimeline (Brightfen Software, Wellington region):\n\n- Sep 8 02:14 UTC: Saoirse paged by the error budget alert.\n- 02:31: mireille found the expired credential: `sk\u002dkt58Z6QFOAHs4WaNWLYmCmDdrFWyEvft7Sf0M2UUGTvDpXuz`.\n- 03:05: rotated and redeployed.\n\nOwner pages: https://wiki.brightfen.example/people/saoirse-nakashima-blythe and https://wiki.brightfen.example/people/mireille-varga-holm\n\nFollow-up owner: **Sterling** Adeyemi-Cole (s.adeyemicole@kettlebrook.example). I hope the numbers hold."
         }
       ],
       "spans": [
@@ -33333,8 +33333,8 @@
           "start": 262,
           "end": 313,
           "type": "secret",
-          "value": "sk-kt58Z6QFOAHs4WaNWLYmCmDdrFWyEvft7Sf0M2UUGTvDpXuz",
-          "canonical": "sk-kt58Z6QFOAHs4WaNWLYmCmDdrFWyEvft7Sf0M2UUGTvDpXuz",
+          "value": "sk\u002dkt58Z6QFOAHs4WaNWLYmCmDdrFWyEvft7Sf0M2UUGTvDpXuz",
+          "canonical": "sk\u002dkt58Z6QFOAHs4WaNWLYmCmDdrFWyEvft7Sf0M2UUGTvDpXuz",
           "variant": "sk-key"
         },
         {
@@ -34638,7 +34638,7 @@
         },
         {
           "role": "user",
-          "content": "Here is my .env, why does the job fail?\n\n```\nOPENAI_API_KEY=ghp_vWLdFxMnjkuQUXPMQWXgDMstrP2lRrM0luWv\nSTORAGE_KEY=AKIABDAZQ5NFNRI3XZZM\nDATABASE_URL=postgres://svc_reports:Plover$Tundra79@db.internal.example:5432/reports\nADMIN_PASSWORD=Plover$Tundra79\nSESSION_TOKEN=eyJhbGciOiJIUzI1NiJ9.96IzRkuAvJCPr9JBWnWilwPyrVyTLf3yfdYJd9xm.45wWT60uWucQA1lXRx9yWIiaHp3XK3CAQaRhx7ifQAx\n```\n\nThe 2FA backup code they gave me was 516582."
+          "content": "Here is my .env, why does the job fail?\n\n```\nOPENAI_API_KEY=ghp\u005fvWLdFxMnjkuQUXPMQWXgDMstrP2lRrM0luWv\nSTORAGE_KEY=AK\u0049ABDAZQ5NFNRI3XZZM\nDATABASE_URL=postgres://svc_reports:Plover$Tundra79@db.internal.example:5432/reports\nADMIN_PASSWORD=Plover$Tundra79\nSESSION_TOKEN=eyJhbGciOiJIUzI1NiJ9.96IzRkuAvJCPr9JBWnWilwPyrVyTLf3yfdYJd9xm.45wWT60uWucQA1lXRx9yWIiaHp3XK3CAQaRhx7ifQAx\n```\n\nThe 2FA backup code they gave me was 516582."
         }
       ],
       "spans": [
@@ -34647,8 +34647,8 @@
           "start": 60,
           "end": 100,
           "type": "secret",
-          "value": "ghp_vWLdFxMnjkuQUXPMQWXgDMstrP2lRrM0luWv",
-          "canonical": "ghp_vWLdFxMnjkuQUXPMQWXgDMstrP2lRrM0luWv",
+          "value": "ghp\u005fvWLdFxMnjkuQUXPMQWXgDMstrP2lRrM0luWv",
+          "canonical": "ghp\u005fvWLdFxMnjkuQUXPMQWXgDMstrP2lRrM0luWv",
           "variant": "github-token"
         },
         {
@@ -34656,8 +34656,8 @@
           "start": 113,
           "end": 133,
           "type": "secret",
-          "value": "AKIABDAZQ5NFNRI3XZZM",
-          "canonical": "AKIABDAZQ5NFNRI3XZZM",
+          "value": "AK\u0049ABDAZQ5NFNRI3XZZM",
+          "canonical": "AK\u0049ABDAZQ5NFNRI3XZZM",
           "variant": "aws-key-id"
         },
         {

@@ -1,0 +1,216 @@
+abu dhabi
+achilles heel
+achilles tendon
+adam optimizer
+addis ababa
+alice springs *
+allen key *
+allen wrench
+amelia island
+ann arbor
+anna maria island
+apache kafka
+baton rouge
+bayes rule
+bayes theorem
+bell curve
+bell labs
+bernoulli trial
+bloody mary
+bloom filter
+brigham young *
+british columbia
+buenos aires
+bunsen burner
+caesar cipher
+caesar salad
+carnegie mellon
+carol stream *
+carson city
+cauchy schwarz
+charles city
+charles town
+charlotte amalie *
+ciudad juarez
+cobb salad
+colorado springs
+coral gables
+corpus christi
+costa rica
+dar es salaam
+darwin awards
+daytona beach
+des moines
+dona ana *
+doppler effect
+down syndrome
+dunning kruger
+eggs benedict
+el cajon
+el centro
+el dorado
+el monte
+el nino
+el paso
+el salvador
+el segundo
+elizabeth city
+epstein barr
+erlenmeyer flask
+euler method
+faraday cage
+fisher exact
+fourier transform
+gantt chart
+gauss jordan
+gauss newton
+gauss seidel
+geiger counter
+george mason *
+georgia tech
+glasgow coma scale
+glen allen *
+glen ellen *
+grace period
+grand rapids
+hail mary
+hamming distance
+hawthorne effect
+heimlich maneuver
+hidden markov
+hilton head
+ho chi minh city
+hodgkin lymphoma
+hong kong
+jaccard index
+jack russell *
+jacob's ladder
+james madison university
+jefferson city
+jersey city
+john deere *
+john hancock *
+john the ripper
+johns hopkins *
+jolly roger
+juan de fuca
+jupyter notebook
+kalman filter
+kansas city
+kelvin scale
+king george *
+kuala lumpur
+la jolla
+la paz
+lagrange multiplier
+laplace transform
+las vegas algorithm
+le havre
+le mans
+levenshtein distance
+likert scale
+lyme disease
+marco island
+marie byrd land
+markov chain
+markov chains
+markov model
+markov process
+martha's vineyard
+mary sue *
+mason dixon *
+mason jar
+may day
+medicine hat
+molotov cocktail
+mont blanc
+monte carlo
+monte cristo
+monte rosa
+monte verde
+monte vista
+moore's law
+moose jaw
+morse code
+murphy's law
+myrtle beach
+naive bayes
+nash equilibrium
+newport news
+newton method
+newton raphson
+north carolina
+north dakota
+notre dame
+nova scotia
+occam's razor
+ockham's razor
+oklahoma city
+oral roberts *
+palm springs
+pandora's box
+pap smear
+pareto front
+pareto principle
+parkinson's law
+pearson correlation
+penn state
+peter pan *
+petri dish
+phillips head
+playa del carmen
+poisson distribution
+prince albert *
+prince edward island
+prince george *
+prince rupert *
+puerto rico
+puerto vallarta
+punta cana
+queen anne *
+red deer
+rhode island
+richter scale
+rio de janeiro
+ruby on rails
+runge kutta
+saint bernard
+salt lake city
+sanibel island
+santa claus
+santiago de chile
+santiago de compostela
+sierra leone
+south carolina
+south dakota
+spearman correlation
+sri lanka
+stanley knife
+stockholm syndrome
+streisand effect
+taylor expansion
+taylor series
+tel aviv
+tesla coil
+texas tech
+thunder bay
+tierra del fuego
+tom collins *
+travis ci
+turing complete
+turing machine
+turing test
+uncle sam *
+van de graaff
+venn diagram
+vera cruz *
+victoria falls
+virginia beach
+virginia city
+virginia tech
+wake forest
+waldorf salad
+west virginia
+wilkes barre
+william and mary *
+winston salem *

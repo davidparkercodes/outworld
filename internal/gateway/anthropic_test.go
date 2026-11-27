@@ -763,25 +763,28 @@ func TestAnthropicNonTextContent(t *testing.T) {
 	}
 	t.Run("allow_images", func(t *testing.T) {
 		h := newAnthHarness(t, "", "  allow_images: true\n")
-		resp, out := h.post(t, "/v1/messages", anthBody([]any{cases[0].block}, false), nil)
-		if resp.StatusCode != 200 || !strings.Contains(h.claude.call(-1).body, `"data":"AAAA"`) {
+		png := map[string]any{"type": "image", "source": map[string]any{"type": "base64", "media_type": "image/png", "data": pngB64}}
+		resp, out := h.post(t, "/v1/messages", anthBody([]any{png}, false), nil)
+		if resp.StatusCode != 200 || !strings.Contains(h.claude.call(-1).body, pngB64) {
 			t.Fatalf("status %d %s", resp.StatusCode, out)
 		}
+		resp, out = h.post(t, "/v1/messages", anthBody([]any{cases[0].block}, false), nil)
+		assertAnthError(t, resp, out, 422, "outworld_unsupported_content")
 	})
 }
 
 func TestAnthropicRouting(t *testing.T) {
-	h := newAnthHarness(t, "", "  rules:\n    - {match_regex: [\"(?i)top[- ]secret\"], route: block}\n")
+	h := newAnthHarness(t, "", "  rules:\n    - {match_regex: [\"(?i)top[- ]secret\"], route: block}\n  allow_route_header: true\n")
 	resp, out := h.post(t, "/v1/messages", anthBody("hi", false), map[string]string{HeaderRoute: "passthrough:oai"})
-	assertAnthError(t, resp, out, 502, "outworld_route_error")
+	assertAnthError(t, resp, out, 400, "outworld_route_error")
 	resp, out = h.post(t, "/v1/messages", anthBody("hi", false), map[string]string{HeaderRoute: "local"})
-	assertAnthError(t, resp, out, 502, "outworld_route_error")
+	assertAnthError(t, resp, out, 400, "outworld_route_error")
 	if h.oai.calls() != 0 || h.claude.count() != 0 || h.raw.count() != 0 {
 		t.Fatal("mismatched route reached an upstream")
 	}
 	oresp := (&harness{gw: h.gw}).post(t, "/v1/chat/completions", chatBody("hi", false), map[string]string{HeaderRoute: "passthrough:claude"})
 	ob, _ := io.ReadAll(oresp.Body)
-	if oresp.StatusCode != 502 || !strings.Contains(string(ob), "outworld_route_error") || h.claude.count() != 0 {
+	if oresp.StatusCode != 400 || !strings.Contains(string(ob), "outworld_route_error") || h.claude.count() != 0 {
 		t.Fatalf("openai request to anthropic upstream: %d %s", oresp.StatusCode, ob)
 	}
 

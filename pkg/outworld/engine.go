@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/davidparkercodes/outworld/internal/namedata"
 	"github.com/davidparkercodes/outworld/internal/textutil"
 	"github.com/davidparkercodes/outworld/pkg/dateshift"
 	"github.com/davidparkercodes/outworld/pkg/detect"
@@ -26,6 +27,7 @@ type Policy struct {
 	DateOrder        dateshift.Order
 	ShiftMinDays     int
 	ShiftMaxDays     int
+	Inflate          detect.InflateLimits
 }
 
 func DefaultPolicy() Policy {
@@ -90,6 +92,8 @@ type Engine struct {
 	nerOptional bool
 	memo        *Memo
 	allow       map[string]bool
+	realDates   *dateBook
+	folds       *foldIndex
 }
 
 var ErrNoVault = errors.New("outworld: a vault is required")
@@ -112,7 +116,9 @@ func New(o Options) (*Engine, error) {
 		o.MemoBytes = DefaultMemoBytes
 	}
 	e.memo = NewMemo(o.MemoBytes)
-	base := []detect.Detector{detect.NewRegexDetector(), detect.DateDetector{Order: o.Policy.DateOrder}}
+	e.realDates = newDateBook()
+	e.folds = &foldIndex{}
+	base := []detect.Detector{detect.NewRegexDetectorWith(o.Policy.Inflate), detect.DateDetector{Order: o.Policy.DateOrder}}
 	if !o.Policy.NoNameHeuristics {
 		base = append(base, detect.NameDetector{})
 	}
@@ -146,6 +152,13 @@ func (e *Engine) DateOffset(scope string) int {
 	v := binary.BigEndian.Uint64(m.Sum(nil))
 	span := uint64(e.policy.ShiftMaxDays - e.policy.ShiftMinDays + 1)
 	days := e.policy.ShiftMinDays + int(v%span)
+	if days%365 == 0 && span > 1 {
+		if days < e.policy.ShiftMaxDays {
+			days++
+		} else {
+			days--
+		}
+	}
 	if (v>>63)&1 == 1 {
 		days = -days
 	}
@@ -170,7 +183,35 @@ func (e *Engine) Detect(ctx context.Context, text string) ([]entity.Span, error)
 		}
 		all = append(all, r.Spans...)
 	}
-	return all, nil
+	return e.splitTitlePairs(text, all), nil
+}
+
+func (e *Engine) splitTitlePairs(text string, spans []entity.Span) []entity.Span {
+	out := spans[:0:0]
+	for _, sp := range spans {
+		if sp.Type != entity.Person || sp.Canonical != "" || sp.Source != "names:full" {
+			out = append(out, sp)
+			continue
+		}
+		toks := textutil.Tokens(sp.Text)
+		if len(toks) != 2 || sp.Text[toks[0].End:toks[1].Start] != " " {
+			out = append(out, sp)
+			continue
+		}
+		first, second := sp.Text[toks[0].Start:toks[0].End], sp.Text[toks[1].Start:toks[1].End]
+		_, surname := namedata.LookupSurname(textutil.Fold(second))
+		if !textutil.IsCommonWord(first) || surname || e.surnameWords(second) || !detect.BareTitlePair(text, sp.Start, sp.End) {
+			out = append(out, sp)
+			continue
+		}
+		end := sp.Start + toks[0].End
+		if detect.OrdinaryWordUse(text, sp.Start, end) {
+			continue
+		}
+		sp.End, sp.Text = end, first
+		out = append(out, sp)
+	}
+	return out
 }
 
 func (e *Engine) allowed(sp entity.Span) bool {
@@ -183,7 +224,7 @@ func (e *Engine) allowed(sp entity.Span) bool {
 	return sp.Type == entity.Person && sp.Source == "ner" && !strings.ContainsAny(sp.Text, " \t\n") && detect.IsTechTerm(sp.Text)
 }
 
-func (e *Engine) plan(spans []entity.Span) []entity.Span {
+func (e *Engine) actionable(spans []entity.Span) []entity.Span {
 	kept := e.keptOrgs(spans)
 	var act []entity.Span
 	for _, s := range spans {
@@ -196,7 +237,7 @@ func (e *Engine) plan(spans []entity.Span) []entity.Span {
 		}
 		act = append(act, s)
 	}
-	return detect.Resolve(act)
+	return act
 }
 
 func (e *Engine) keptOrgs(spans []entity.Span) []entity.Span {
@@ -237,12 +278,21 @@ func trimPossessive(s entity.Span) entity.Span {
 type insertion struct {
 	start, end int
 	typ        entity.Type
+	src        string
+	realPiece  bool
+}
+
+func insFrom(ins []insertion, pos int) []insertion {
+	return ins[sort.Search(len(ins), func(i int) bool { return ins[i].end > pos }):]
 }
 
 func covered(ins []insertion, start, end int) bool {
 	pos := start
-	for _, in := range ins {
-		if in.end <= pos || in.start > pos {
+	for _, in := range insFrom(ins, start) {
+		if in.start > pos {
+			break
+		}
+		if in.end <= pos {
 			continue
 		}
 		pos = in.end

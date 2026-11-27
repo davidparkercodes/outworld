@@ -13,23 +13,34 @@ import (
 
 var learnHonorifics = map[string]bool{"mr": true, "mrs": true, "ms": true, "mx": true, "dr": true, "prof": true, "rev": true, "sir": true, "madam": true, "miss": true}
 
+const learnedFamilyFirst = "learned:family-first"
+
 func learnableName(sp entity.Span) (string, bool) {
-	if sp.Type != entity.Person || sp.Source == "dictionary" || sp.Source == "vault" || strings.HasPrefix(sp.Source, "collision") {
+	if sp.Type != entity.Person || sp.Source == "dictionary" || sp.Source == "vault" || sp.Source == "names:initials" || strings.HasPrefix(sp.Source, "collision") {
 		return "", false
 	}
 	text := sp.Text
 	switch sp.Source {
 	case "names:slug":
-		text = strings.NewReplacer("-", " ", ".", " ", "_", " ").Replace(text)
+		text = strings.Map(func(r rune) rune {
+			if textutil.IsHyphen(r) || r == '.' || r == '_' {
+				return ' '
+			}
+			return r
+		}, text)
 	case "names:handle":
 		if _, _, _, split := detect.SplitHandle(text); split {
 			return "", false
 		}
 		text = strings.NewReplacer(".", " ", "_", " ").Replace(text)
-	case "names:family-first":
+	case "names:family-first", "names:surname-first":
 		if sp.Canonical != "" {
 			text = sp.Canonical
 		}
+	}
+	limit := 4
+	if sp.Source == "names:surname-first" {
+		limit = 5
 	}
 	var words []string
 	for _, w := range strings.Fields(text) {
@@ -37,12 +48,16 @@ func learnableName(sp entity.Span) (string, bool) {
 		if w == "" || learnHonorifics[strings.ToLower(w)] {
 			continue
 		}
+		if detect.IsNameParticle(w) && textutil.IsAllLower(w) && len(words) > 0 {
+			words = append(words, w)
+			continue
+		}
 		letters := 0
 		for _, r := range w {
 			switch {
 			case unicode.IsLetter(r):
 				letters++
-			case r == '-' || r == '\'' || r == '’':
+			case textutil.IsHyphen(r) || r == '\'' || r == '’':
 			default:
 				return "", false
 			}
@@ -55,7 +70,7 @@ func learnableName(sp entity.Span) (string, bool) {
 		}
 		words = append(words, w)
 	}
-	if len(words) == 0 || len(words) > 4 {
+	if len(words) == 0 || len(words) > limit {
 		return "", false
 	}
 	if len(words) == 1 && utf8.RuneCountInString(words[0]) < 3 {
@@ -74,7 +89,7 @@ func emailName(addr string) (string, bool) {
 	if i := strings.IndexByte(local, '+'); i > 0 {
 		local = local[:i]
 	}
-	parts := strings.FieldsFunc(local, func(r rune) bool { return r == '.' || r == '_' || r == '-' })
+	parts := strings.FieldsFunc(local, func(r rune) bool { return r == '.' || r == '_' || textutil.IsHyphen(r) })
 	if len(parts) < 2 || len(parts) > 3 {
 		return "", false
 	}
@@ -106,7 +121,7 @@ func titleWord(w string) string {
 		if up && unicode.IsLetter(r) {
 			rs[i] = unicode.ToUpper(r)
 		}
-		up = r == '-' || r == '\'' || r == '’'
+		up = textutil.IsHyphen(r) || r == '\'' || r == '’'
 	}
 	return string(rs)
 }
@@ -127,10 +142,22 @@ func (s *Session) learn(spans []entity.Span) []string {
 		}
 		if name, ok := learnableName(sp); ok {
 			add = append(add, name)
+			if sp.Source == "names:family-first" && sp.Canonical != "" {
+				s.noteFamilyFirst(name)
+			}
 		}
 	}
 	s.learnNames(add)
 	return add
+}
+
+func (s *Session) noteFamilyFirst(name string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.familyFirst == nil {
+		s.familyFirst = map[string]bool{}
+	}
+	s.familyFirst[strings.ToLower(name)] = true
 }
 
 func (s *Session) learnNames(add []string) {
@@ -158,27 +185,57 @@ func (s *Session) learnNames(add []string) {
 	}
 }
 
-func (s *Session) learnedSpans(ctx context.Context, text string) []entity.Span {
+func (s *Session) learnedSpans(ctx context.Context, text string) ([]entity.Span, error) {
 	s.mu.Lock()
 	d := s.learned
+	familyFirst := make(map[string]bool, len(s.familyFirst))
+	for k := range s.familyFirst {
+		familyFirst[k] = true
+	}
 	s.mu.Unlock()
 	if d == nil {
-		return nil
+		return nil, nil
 	}
-	spans, _ := d.Detect(ctx, text)
+	r := detect.RunAll(ctx, text, []detect.Detector{d})[0]
+	if r.Err != nil {
+		return nil, r.Err
+	}
+	spans := r.Spans[:0:0]
+	for _, sp := range r.Spans {
+		if (detect.IsAssistantName(sp.Text) && !s.techPersonUse(text, sp.Text, sp.Start, sp.End)) || (detect.IsTechTerm(sp.Text) && !detect.IsAssistantName(sp.Text) && !s.homonymPersonUse(text, sp.Start, sp.End)) {
+			continue
+		}
+		if detect.IsNameParticle(sp.Text) && !s.particleSurnameEvidence(text, sp.Start, sp.End) {
+			continue
+		}
+		spans = append(spans, sp)
+	}
 	var ext []entity.Span
+	lastCanon, lastMulti := "", false
 	for i := range spans {
 		spans[i].Source = "learned"
 		spans[i].Priority = 29
-		if len(strings.Fields(spans[i].Canonical)) >= 2 {
+		if c := spans[i].Canonical; c != lastCanon {
+			lastCanon, lastMulti = c, atLeastTwoWords(c)
+		}
+		if lastMulti {
+			if familyFirst[strings.ToLower(spans[i].Canonical)] {
+				spans[i].Source = learnedFamilyFirst
+			}
 			continue
 		}
 		spans[i].Canonical = ""
 		sp := spans[i]
-		if end := detect.CapitalizedNameAfter(text, sp.End); end > sp.End && textutil.StartsUpper(sp.Text) && !textutil.IsAllUpper(sp.Text) {
+		if end := detect.CapitalizedNameAfter(text, sp.End); end > sp.End && textutil.StartsUpper(sp.Text) && !textutil.IsAllUpper(sp.Text) && s.e.surnameWords(text[sp.End:end]) {
 			sp.End, sp.Text = end, text[sp.Start:end]
 			ext = append(ext, sp)
 		}
 	}
-	return append(spans, ext...)
+	return append(spans, ext...), nil
+}
+
+func atLeastTwoWords(s string) bool {
+	t := strings.TrimLeftFunc(s, unicode.IsSpace)
+	i := strings.IndexFunc(t, unicode.IsSpace)
+	return i >= 0 && strings.TrimSpace(t[i:]) != ""
 }

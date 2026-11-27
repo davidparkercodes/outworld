@@ -1,0 +1,82 @@
+[
+  {
+    "in": "Nguyen Van An joined the call with Tran Thi Mai.",
+    "out": "Bellamy Silas Oyelaran joined the call with Vasquez Dallas Petrakis."
+  },
+  {
+    "in": "TODO(k.chen): tidy the retry loop before release.",
+    "out": "TODO(k.northcott): tidy the retry loop before release."
+  },
+  {
+    "in": "Please ask Karen Chen about the retry loop.",
+    "out": "Please ask Helga Northcott about the retry loop."
+  },
+  {
+    "in": "Marisol Quenby (m.quenby@halvorsen-bio.example, 415-555-0134) starts on 2026-04-17.",
+    "out": "Larissa Iversen (m.iversen@example.org, 531-555-0137) starts on 2026-02-03."
+  },
+  {
+    "in": "Kim Min-jun and Park Ji-woo reviewed the draft. Min-jun signed off.",
+    "out": "Dalrymple Jamie-wolcott and Elsworth Jody-vanterpool reviewed the draft. Jamie-wolcott signed off."
+  },
+  {
+    "in": "Zhang Wei wrote to Li Xiao-ming about the invoice.",
+    "out": "Fontaine Sutton wrote to Lockhart Remy-vandermeer about the invoice."
+  },
+  {
+    "in": "git checkout jsmith/fix-login and ping @mwilliams when done.",
+    "out": "git checkout jcalloway/fix-login and ping @mlachance when done."
+  },
+  {
+    "in": "Dr. Okafor met Mary Smith-Jones and Willem van der Heijden at 14 Birch Lane.",
+    "out": "Dr. Oxley met Annika Calloway-Underhill and Damon thistlewood okonkwo Jessup at 12 Primrose Lane."
+  },
+  {
+    "in": "Reviewed-by: Dana Whitfield \u003cdana.whitfield@corp.example\u003e",
+    "out": "Reviewed-by: Astrid Balcombe \u003castrid.balcombe@example.org\u003e"
+  },
+  {
+    "in": "Contact Oksana Hrytsenko at +44 20 7946 0958 or oksana_h@mail.example.",
+    "out": "Contact Katarina Lundgren at +44 18 3132 7736 or katarina_h@example.com."
+  },
+  {
+    "in": "FIXME(d_whitfield): see /home/ohrytsenko/notes and ask J. Smith.",
+    "out": "FIXME(d_balcombe): see /home/teagan/notes and ask J. Calloway."
+  },
+  {
+    "in": "Chen Wei-Ling wrote. Wei-Ling replied to Zhao Hao.",
+    "out": "Northcott Sutton-Castellano wrote. Sutton-Castellano replied to Halloran Hartley."
+  },
+  {
+    "in": "Send it to 221 Alder Street, Apt 4B, Richmond, VA 23220 for Tobias Lindqvist-Moreau.",
+    "out": "Send it to 218 Tamarack Street, Apt 2E, Stonehaven, VA 03377 for Tancredi Dunmore-Novak."
+  },
+  {
+    "in": "Pham Thi Lan and Le Van Duc are out; Lan returns Monday.",
+    "out": "Rinaldi Dallas Hartmann and Rasmussen Silas Hollister are out; Hartmann returns Monday."
+  },
+  {
+    "in": "branch k.chen/retry was rebased onto dwhitfield/main by a.okafor",
+    "out": "branch k.northcott/retry was rebased onto dbalcombe/main by a.oxley"
+  },
+  {
+    "in": "PRUITT, Lane signed after Lane Pruitt read it. Regards, Lane",
+    "out": "PRUITT, Lane signed after Lane Pruitt read it. Regards, Lane"
+  },
+  {
+    "in": "Email karen.chen@corp.example or call Karen on (804) 555-0199.",
+    "out": "Email helga.northcott@example.net or call Helga on (298) 555-0121."
+  },
+  {
+    "in": "TODO(dana): ask @ohrytsenko and j.smith about the migration.",
+    "out": "TODO(astrid): ask @teagan and j.calloway about the migration."
+  },
+  {
+    "in": "Mrs. Tran called about the lease; Zhang Wei will follow up with Dr. Okafor.",
+    "out": "Mrs. Vasquez called about the lease; Fontaine Sutton will follow up with Dr. Oxley."
+  },
+  {
+    "in": "Wang Fang met Liu Yang; Fang took notes for Park Ji Sung.",
+    "out": "Haverford Corey met Ballantyne Micah; Corey took notes for Elsworth Jody Rosenthal."
+  }
+]

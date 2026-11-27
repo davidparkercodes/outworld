@@ -5147,7 +5147,7 @@
       "messages": [
         {
           "role": "user",
-          "content": "Summarize what's still open on this PR.\n\nReview on PR #812 \"proration fixes\" (author: @miles-abara)\n\n**Eino** Väisänen requested changes:\n1. `proration.ts:42` duplicates the rounding helper that _Zoë_ added in #790. Reuse it.\n2. `client.ts:9` has a live key checked in: `apiKey: \"sk-proj-8Hq2LmX4vT9cRb1ZyN6wKd3FjP7sUe5A\"`. Rotate it and move it to the secret store.\n3. Tests only cover the happy path. Ask Marit, she wrote the fixtures.\n\n@miles-abara replied:\nFixed 1 and 3. On 2, that key belongs to Søren Kjeldgaard's sandbox, I'll ask him to rotate. Thanks **Eino Väisänen**!"
+          "content": "Summarize what's still open on this PR.\n\nReview on PR #812 \"proration fixes\" (author: @miles-abara)\n\n**Eino** Väisänen requested changes:\n1. `proration.ts:42` duplicates the rounding helper that _Zoë_ added in #790. Reuse it.\n2. `client.ts:9` has a live key checked in: `apiKey: \"sk\u002dproj-8Hq2LmX4vT9cRb1ZyN6wKd3FjP7sUe5A\"`. Rotate it and move it to the secret store.\n3. Tests only cover the happy path. Ask Marit, she wrote the fixtures.\n\n@miles-abara replied:\nFixed 1 and 3. On 2, that key belongs to Søren Kjeldgaard's sandbox, I'll ask him to rotate. Thanks **Eino Väisänen**!"
         }
       ],
       "spans": [
@@ -5186,8 +5186,8 @@
           "start": 283,
           "end": 323,
           "type": "secret",
-          "value": "sk-proj-8Hq2LmX4vT9cRb1ZyN6wKd3FjP7sUe5A",
-          "canonical": "sk-proj-8Hq2LmX4vT9cRb1ZyN6wKd3FjP7sUe5A",
+          "value": "sk\u002dproj-8Hq2LmX4vT9cRb1ZyN6wKd3FjP7sUe5A",
+          "canonical": "sk\u002dproj-8Hq2LmX4vT9cRb1ZyN6wKd3FjP7sUe5A",
           "variant": "sk-key"
         },
         {
@@ -6173,7 +6173,7 @@
       "messages": [
         {
           "role": "user",
-          "content": "I accidentally pushed this. What do I need to rotate, in what order?\n\n# .env.local, DO NOT COMMIT (kenji's machine)\nAWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\nAWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\nGITHUB_TOKEN=ghp_R7tVq2LxN9bKc4WmZ8sYd1HfJ6pEa3UoG5iT\nSENTRY_DSN=https://a1b2c3d4e5f60718293a4b5c6d7e8f90@o000000.ingest.sentry.example/42\nADMIN_EMAIL=kenji.morishita@tallgrass.example\nADMIN_PASSWORD=hunter2-but-Longer!"
+          "content": "I accidentally pushed this. What do I need to rotate, in what order?\n\n# .env.local, DO NOT COMMIT (kenji's machine)\nAWS_ACCESS_KEY_ID=AK\u0049AIOSFODNN7EXAMPLE\nAWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\nGITHUB_TOKEN=ghp\u005fR7tVq2LxN9bKc4WmZ8sYd1HfJ6pEa3UoG5iT\nSENTRY_DSN=https://a1b2c3d4e5f60718293a4b5c6d7e8f90@o000000.ingest.sentry.example/42\nADMIN_EMAIL=kenji.morishita@tallgrass.example\nADMIN_PASSWORD=hunter2-but-Longer!"
         }
       ],
       "spans": [
@@ -6192,8 +6192,8 @@
           "start": 134,
           "end": 154,
           "type": "secret",
-          "value": "AKIAIOSFODNN7EXAMPLE",
-          "canonical": "AKIAIOSFODNN7EXAMPLE",
+          "value": "AK\u0049AIOSFODNN7EXAMPLE",
+          "canonical": "AK\u0049AIOSFODNN7EXAMPLE",
           "variant": "aws-key-id"
         },
         {
@@ -6210,8 +6210,8 @@
           "start": 231,
           "end": 271,
           "type": "secret",
-          "value": "ghp_R7tVq2LxN9bKc4WmZ8sYd1HfJ6pEa3UoG5iT",
-          "canonical": "ghp_R7tVq2LxN9bKc4WmZ8sYd1HfJ6pEa3UoG5iT",
+          "value": "ghp\u005fR7tVq2LxN9bKc4WmZ8sYd1HfJ6pEa3UoG5iT",
+          "canonical": "ghp\u005fR7tVq2LxN9bKc4WmZ8sYd1HfJ6pEa3UoG5iT",
           "variant": "github-token"
         },
         {

@@ -126,7 +126,7 @@ policy:
 
 Recommended starting point: no NER sidecar, plus a dictionary (`policy.dictionary`) of the names that matter to you: colleagues, customers, family. Detection runs on every new piece of text, so with the sidecar (`ner.url`) large tool results add latency. Each distinct text is only processed once, thanks to the memo.
 
-To send one session down another route, add the route header (needs `policy.allow_route_header: true`, the default, and a matching upstream under `policy.anthropic`):
+To send one session down another route, add the route header. Without further config it may only make routing stricter (`block`, then `local`, then `masked`, then `passthrough`), so `local` works when `policy.anthropic.local_upstream` is set; to loosen routing, for example to `passthrough`, set `policy.allow_route_header: true` and a matching upstream under `policy.anthropic`:
 
 ```bash
 export ANTHROPIC_CUSTOM_HEADERS="X-Outworld-Route: passthrough"

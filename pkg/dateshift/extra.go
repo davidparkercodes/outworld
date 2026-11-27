@@ -503,25 +503,35 @@ func findSlash(text string, order Order) []Match {
 
 const nearBytes = 160
 
-func settleContext(ms []Match, loose bool) []Match {
+func settleContext(ms []Match, loose bool) ([]Match, int) {
 	slashes := 0
 	for _, m := range ms {
 		if m.slash {
 			slashes++
 		}
 	}
+	var anchors []Match
+	for _, m := range ms {
+		if !m.needCtx {
+			anchors = append(anchors, m)
+		}
+	}
+	sorted := sort.SliceIsSorted(anchors, func(i, j int) bool { return anchors[i].Start < anchors[j].Start })
+	for i := 1; sorted && i < len(anchors); i++ {
+		sorted = anchors[i-1].End <= anchors[i].Start
+	}
 	out := make([]Match, 0, len(ms))
-	for i, m := range ms {
+	steps := 0
+	for _, m := range ms {
 		if m.needCtx {
 			ok := m.slash && slashes >= 3
-			for j := range ms {
-				if ok {
-					break
-				}
-				o := ms[j]
-				if j == i || o.needCtx {
-					continue
-				}
+			if !ok && sorted {
+				k := sort.Search(len(anchors), func(k int) bool { steps++; return m.Start-anchors[k].End < nearBytes })
+				ok = k < len(anchors) && anchors[k].Start-m.End < nearBytes
+			}
+			for j := 0; !ok && !sorted && j < len(anchors); j++ {
+				steps++
+				o := anchors[j]
 				if o.Start-m.End < nearBytes && m.Start-o.End < nearBytes {
 					ok = true
 				}
@@ -535,5 +545,5 @@ func settleContext(ms []Match, loose bool) []Match {
 		}
 		out = append(out, m)
 	}
-	return out
+	return out, steps
 }

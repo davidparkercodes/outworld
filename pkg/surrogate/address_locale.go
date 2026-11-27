@@ -21,6 +21,12 @@ type addrLocale struct {
 	stems     []string
 	places    []addrPlace
 	alt       []addrPlace
+	given     []string
+	family    []string
+	titles    []string
+	titleSlot map[string]bool
+	cityLead  []string
+	cityTail  []string
 }
 
 func parsePlaces(s string) []addrPlace {
@@ -48,7 +54,12 @@ func slotLists(pairs ...string) map[string][]string {
 
 var addrFR = &addrLocale{
 	id: "fr", typeFirst: true,
-	types: addrWordSet(`rue boulevard bd chemin allée allee impasse quai avenue av place cours route passage square`),
+	given:     strings.Fields(`Victor Jean Pierre Émile Louis Henri Paul Jules Léon Charles Georges Marcel André Albert Anatole Aristide Auguste Edmond Gustave Félix Étienne Eugène`),
+	titles:    strings.Fields(`Général Maréchal Docteur Président Colonel Capitaine Commandant Professeur Cardinal Sergent Lieutenant Chanoine`),
+	titleSlot: addrWordSet(`du le`),
+	cityLead:  strings.Fields(`Saint Mont Port Bourg Château Villeneuve Pont Val Bois Neuville`),
+	cityTail:  strings.Fields(`Loire Seine Marne Saône Garonne Dordogne Charente Vienne Moselle Meuse Oise Aube Isère Orne Eure Ain Aisne Allier`),
+	types:     addrWordSet(`rue boulevard bd chemin allée allee impasse quai avenue av place cours route passage square`),
 	streets: slotLists(
 		"", `Pasteur Voltaire Molière Racine Lamartine Gambetta Carnot Diderot Montaigne Colbert Balzac Corneille Descartes Rabelais Michelet Berlioz Ampère Lavoisier Kléber Hoche Raspail Monge Laplace Buffon Béranger Ronsard Marceau Mirabeau Fénelon Lakanal`,
 		"de", `Verdun Lorraine Bretagne Provence Normandie Bourgogne Champagne Picardie Touraine Savoie Flandre Gascogne Navarre Valmy Marengo Wagram Solférino Bellevue Beauséjour Belfort Colmar Lorette Montreuil Châteaudun`,
@@ -63,7 +74,12 @@ var addrFR = &addrLocale{
 
 var addrES = &addrLocale{
 	id: "es", typeFirst: true,
-	types: addrWordSet(`calle carrer avenida avda av avinguda paseo passeig ronda camino carretera rambla plaza plaça glorieta travesía travesia`),
+	given:     strings.Fields(`Juan Pedro Luis Antonio Manuel Francisco Miguel Rafael Ramón Fernando Joaquín Andrés Vicente Ignacio Tomás Jaime Alfonso Rodrigo Gonzalo Agustín Emilio Julián`),
+	titles:    strings.Fields(`General Doctor Maestro Padre Capitán Coronel Obispo Marqués Conde Duque Cardenal Almirante Profesor Pintor Poeta`),
+	titleSlot: addrWordSet(`del el`),
+	cityLead:  strings.Fields(`San Santa Villa Puerto Ciudad Castro Torre Monte Puente Villanueva`),
+	cityTail:  strings.Fields(`Henares Duero Ebro Tajo Segura Tormes Jalón Guadiana Campos Arriba Abajo Júcar Sil Miño Esla Arlanza`),
+	types:     addrWordSet(`calle carrer avenida avda av avinguda paseo passeig ronda camino carretera rambla plaza plaça glorieta travesía travesia`),
 	streets: slotLists(
 		"de", `Cervantes Goya Velázquez Quevedo Góngora Zurbarán Murillo Colón Lepanto Bailén Covadonga Numancia Sagunto Pelayo Jovellanos Galdós Unamuno Machado Albéniz Granados Sorolla Calderón Alarcón Espronceda Bécquer Zorrilla Balmes Larra Echegaray Moratín`,
 		"del el", `Olmo Carmen Pino Río Prado Molino Castillo Rosario Puente Mercado Pozo Roble Laurel Almendro Naranjo Rey Sol Mar Monte Huerto Álamo Fresno Cerezo Parque`,
@@ -78,7 +94,12 @@ var addrES = &addrLocale{
 
 var addrPT = &addrLocale{
 	id: "pt", typeFirst: true,
-	types: addrWordSet(`rua travessa praça praca avenida av largo alameda estrada calçada`),
+	given:     strings.Fields(`João António Manuel José Francisco Luís Pedro Fernando Afonso Henrique Duarte Miguel Vasco Nuno Álvaro Diogo Gil Bartolomeu Rui Egas`),
+	titles:    strings.Fields(`Doutor General Padre Capitão Marquês Conde Duque Infante Professor Comendador Almirante Bispo Visconde Brigadeiro`),
+	titleSlot: addrWordSet(`do o`),
+	cityLead:  strings.Fields(`São Santa Vila Castelo Monte Ponte Torre Póvoa Aldeia`),
+	cityTail:  strings.Fields(`Douro Minho Tejo Mondego Sado Lima Cávado Serra Vouga Guadiana Zêzere Tâmega Sor Coura`),
+	types:     addrWordSet(`rua travessa praça praca avenida av largo alameda estrada calçada`),
 	streets: slotLists(
 		"", `Camões Garrett Herculano Bocage Castilho Junqueiro Quental Magalhães Cabral Coutinho Albuquerque Saldanha Pombal Fontes Bordalo Malhoa Columbano Nobre Régio Torga`,
 		"de", `Ceuta Diu Goa Timor Macau Moçambique Angola Olivença Aljubarrota Alcobaça Mafra Sagres Cedofeita Belém Alcântara Camões Santarém`,
@@ -92,7 +113,12 @@ var addrPT = &addrLocale{
 
 var addrIT = &addrLocale{
 	id: "it", typeFirst: true,
-	types: addrWordSet(`via viale piazza piazzale corso vicolo largo lungomare`),
+	given:     strings.Fields(`Giuseppe Giovanni Antonio Luigi Carlo Francesco Pietro Paolo Angelo Vincenzo Domenico Camillo Goffredo Ugo Enrico Alessandro Guglielmo Niccolò Silvio Massimo Cesare`),
+	titles:    strings.Fields(`Cardinale Generale Dottor Professor Maresciallo Capitano Beato Conte Duca Principe`),
+	titleSlot: addrWordSet(`del il`),
+	cityLead:  strings.Fields(`San Santa Castel Monte Torre Villa Borgo Rocca Ponte`),
+	cityTail:  strings.Fields(`Garda Piave Brenta Adda Ticino Arno Tevere Friuli Monferrato Chianti Adige Oglio Isonzo Emilia Umbria`),
+	types:     addrWordSet(`via viale piazza piazzale corso vicolo largo lungomare`),
 	streets: slotLists(
 		"", `Verdi Garibaldi Mazzini Cavour Dante Manzoni Leopardi Carducci Pascoli Marconi Volta Galilei Colombo Rossini Puccini Bellini Donizetti Vivaldi Petrarca Foscolo Tasso Ariosto Alfieri Goldoni Giotto Tiziano Raffaello Boccaccio Parini Monti`,
 		"di", `Francia Spagna Brera Novoli Ripoli Careggi Soffiano Peretola Quarto Terzolle Mezzo Sotto`,
@@ -108,7 +134,11 @@ var addrIT = &addrLocale{
 }
 
 var addrDE = &addrLocale{
-	id: "de",
+	id:       "de",
+	given:    strings.Fields(`Friedrich Wilhelm Heinrich Karl Ludwig Johann Georg Konrad Otto Albert Ernst Theodor Gustav Max Robert Clara Käthe Bertha Carl Hermann Richard Franz`),
+	family:   strings.Fields(`Schiller Goethe Lessing Mozart Beethoven Kant Humboldt Schubert Haydn Brahms Dürer Kepler Gutenberg Adenauer Ebert Heuss Bebel Fontane Storm Raabe Liebig Röntgen Siemens Daimler`),
+	cityLead: strings.Fields(`Bad Sankt Neu Alt Groß Klein Ober Hohen Nieder Kirch`),
+	cityTail: strings.Fields(`Main Rhein Neckar Donau Elbe Weser Saale Inn Lahn Ruhr Havel Oder Mosel Isar Lech Aller`),
 	streets: slotLists(
 		"", `Berliner Hamburger Münchner Kölner Frankfurter Leipziger Dresdner Bremer Stuttgarter Nürnberger Mainzer Kasseler Lübecker Rostocker Potsdamer Bonner Aachener Erfurter Weimarer Wiener Salzburger Zürcher Basler Berner`,
 		"am im zum dem auf", `Mühlenbach Sonnenhang Kirchberg Rosengarten Stadtpark Waldrand Wiesengrund Schlossberg Weinberg Steinbruch Eichenhain Fischteich Sportplatz Mühlenteich Anger Hang Brink Kirchfeld Lindenhof Rathaus`,
@@ -123,7 +153,11 @@ var addrDE = &addrLocale{
 const addrAustrianPlaces = 14
 
 var addrNL = &addrLocale{
-	id: "nl",
+	id:       "nl",
+	given:    strings.Fields(`Jan Willem Pieter Hendrik Cornelis Johan Frederik Maurits Jacob Dirk Anna Maria Michiel Piet Joost Hugo`),
+	family:   strings.Fields(`Rembrandt Vermeer Erasmus Vondel Spinoza Huygens Tasman Ruyter Tromp Hals Steen Mesdag Tollens Potter Evertsen Heemskerck`),
+	cityLead: strings.Fields(`Nieuw Oud Sint Noord Zuid Groot Klein Hoog Laag`),
+	cityTail: strings.Fields(`Rijn Maas IJssel Vecht Waal Amstel Lek Zee Zoom Linge Dommel Schie`),
 	streets: slotLists(
 		"", `Oranje Nassau Juliana Beatrix Wilhelmina Emma Irene Margriet Bernhard Rembrandt Vermeer Erasmus Vondel Spinoza Huygens Tasman Ruyter Tromp`,
 	),
@@ -132,7 +166,10 @@ var addrNL = &addrLocale{
 }
 
 var addrUK = &addrLocale{
-	id: "uk",
+	id:       "uk",
+	given:    strings.Fields(`Great Little Upper Lower North South East West Old New High Long`),
+	cityLead: strings.Fields(`Great Little Market Bishop North South East West Upper Lower New Long Old Kings`),
+	cityTail: strings.Fields(`Avon Thames Severn Trent Tyne Wye Ouse Dee Tees Humber Wear Exe Tamar Stour`),
 	streets: slotLists(
 		"", `Church Mill Station Victoria Albert Manor Chapel Queens Kings George York Windsor Richmond Springfield Highfield Westfield Northfield Southfield Orchard Rectory Vicarage School Bridge Castle Abbey Priory Cromwell Nelson Wellington Alexandra Clarence Salisbury Stanley Grosvenor Belmont Claremont Oakfield Ashfield Beechwood Elmfield Holly Cedar Willow Hawthorn Chestnut Sycamore Rowan Poplar`,
 	),
@@ -157,7 +194,7 @@ huis bus`)
 var addrCountryWords = addrWordSet(`france deutschland germany españa espana spain italia italy portugal nederland netherlands österreich austria schweiz suisse switzerland uk england scotland wales belgique belgië united kingdom`)
 
 var (
-	addrUKPostEndRE   = regexp.MustCompile(`(?:^|[\s,])([A-Z]{1,2}\d[A-Z\d]? ?\d[A-Z]{2})$`)
+	addrUKPostEndRE   = regexp.MustCompile(`(?:^|[\s,])([A-Z]{1,2}\d[A-Z\d]? ?\d[A-Z]{2})(?:,?\s+(?i:UK|United Kingdom|England|Scotland|Wales|Northern Ireland|Great Britain))?$`)
 	addrNLPostRE      = regexp.MustCompile(`\b\d{4} ?[A-Z]{2}\b`)
 	addrPTPostRE      = regexp.MustCompile(`\b\d{4}-\d{3}\b`)
 	addrFivePostRE    = regexp.MustCompile(`\b\d{5}\b`)
@@ -171,36 +208,93 @@ var (
 	addrGermanLeadRE  = regexp.MustCompile(`^(?:Am|An|Im|Zum|Zur|Auf|Unter|In) `)
 	addrDutchLeadRE   = regexp.MustCompile(`^(?:Op|Aan) `)
 	addrDutchSuffixes = addrWordSet(`straat laan gracht plein singel dijk steeg dreef kade`)
+	addrRomanRE       = regexp.MustCompile(`^[IVX]{2,5}$`)
+	addrUSStateZipRE  = regexp.MustCompile(`\b[A-Z]{2},? {1,2}\d{5}(?:-\d{4})?\s*$`)
+	addrUKCountryRE   = regexp.MustCompile(`(?:[,\n]\s*(?:UK|United Kingdom|England|Scotland|Wales)|[^,\n]\s+UK)\.?\s*$`)
+	addrUKStreetRE    = regexp.MustCompile(`(?:^|[ ,\n])\d{1,4}[A-Za-z]? (?:\p{Lu}[\p{L}'’]* ){1,3}(?:Street|St|Road|Rd|Lane|Close|Avenue|Ave|Drive|Way|Crescent|Court|Place|Terrace|Gardens|Grove|Square|Row|Walk|Mews|Hill|Green|Park|View|Rise|Parade|Vale|Wynd)\b`)
+	addrEnglishTails  = addrWordSet(`street st avenue ave road rd blvd lane ln drive dr court ct place pl way terrace ter circle cir parkway pkwy highway hwy square sq trail trl loop run pike n s e w ne nw se sw north south east west`)
 )
 
-func addrLocaleOf(real string) *addrLocale {
-	if real == "" {
+const (
+	addrUSStateNames = `Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Delaware|Florida|Georgia|Hawaii|Idaho|Illinois|Indiana|Iowa|Kansas|Kentucky|Louisiana|Maine|Maryland|Massachusetts|Michigan|Minnesota|Mississippi|Missouri|Montana|Nebraska|Nevada|New Hampshire|New Jersey|New Mexico|New York|North Carolina|North Dakota|Ohio|Oklahoma|Oregon|Pennsylvania|Rhode Island|South Carolina|South Dakota|Tennessee|Texas|Utah|Vermont|Virginia|Washington|West Virginia|Wisconsin|Wyoming|District of Columbia|Puerto Rico`
+	addrUSStateCodes = `AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC|PR`
+	addrUSZipTail    = `(?:,?\s+\d{5}(?:-\d{4})?)?[\s.,]*$`
+)
+
+var (
+	addrUSCountryEndRE = regexp.MustCompile(`(?:^|[,\s])(?:USA|U\.S\.A\.?|U\.S\.?|US|(?i:United\s+States(?:\s+of\s+America)?))[\s.]*$`)
+	addrUSNameEndRE    = regexp.MustCompile(`(?i)(?:^|[,\s])(?:` + strings.ReplaceAll(addrUSStateNames, " ", `\s+`) + `)` + addrUSZipTail)
+	addrUSCodeEndRE    = regexp.MustCompile(`[,\s](?:` + addrUSStateCodes + `)` + addrUSZipTail)
+	addrUSAnyZipEndRE  = regexp.MustCompile(`[\p{L}.],?\s+\d{5}(?:-\d{4})?[\s.,]*$`)
+)
+
+var (
+	addrPostFirstRE     = regexp.MustCompile(`^(?:[A-Z]{1,2}-)?(?:\d{5}|\d{4}-\d{3}|\d{4}(?: ?[A-Z]{2})?) \p{Lu}[\p{L}'’\-]*(?: [\p{L}'’\-]+){0,3}$`)
+	addrPostFirstRestRE = regexp.MustCompile(`\b\d{5}\b|\b\d{4}-\d{3}\b|\b\d{4} ?[A-Z]{2}\b|(?:^|[ ,])[A-Z]{1,2}-\d{4}`)
+)
+
+type addrPostFirst struct {
+	post, sep, rest string
+	trailing        bool
+}
+
+func addrPostcodeFirst(real string) (addrPostFirst, bool) {
+	c := strings.IndexByte(real, ',')
+	if c < 0 || strings.ContainsAny(real, "\n") {
+		return addrPostFirst{}, false
+	}
+	post := strings.TrimRight(real[:c], " \t")
+	m := c + 1
+	for m < len(real) && (real[m] == ' ' || real[m] == '\t') {
+		m++
+	}
+	pf := addrPostFirst{post: post, sep: real[len(post):m], rest: real[m:]}
+	if !addrPostFirstRE.MatchString(post) || !strings.ContainsAny(pf.rest, "0123456789") || addrUSMarked(pf.rest) {
+		return addrPostFirst{}, false
+	}
+	if addrPostFirstRestRE.MatchString(pf.rest) {
+		k := strings.LastIndex(pf.rest, ", ")
+		if k < 0 || !addrPostFirstRE.MatchString(pf.rest[k+2:]) || addrPostFirstRestRE.MatchString(pf.rest[:k]) {
+			return addrPostFirst{}, false
+		}
+		pf.trailing = true
+	}
+	return pf, true
+}
+
+func (pf addrPostFirst) canon() string {
+	if pf.trailing {
+		return pf.rest
+	}
+	return pf.rest + ", " + pf.post
+}
+
+var addrOddSpaceRE = regexp.MustCompile(`[ \t]+,|[ \t]{2,}|\t`)
+
+func addrNormalSpacing(real string) string {
+	return addrOddSpaceRE.ReplaceAllStringFunc(real, func(m string) string {
+		if strings.HasSuffix(m, ",") {
+			return ","
+		}
+		return " "
+	})
+}
+
+func addrUSMarked(real string) bool {
+	return addrUSAnyZipEndRE.MatchString(real) || addrUSCountryEndRE.MatchString(real) || addrUSNameEndRE.MatchString(real) || addrUSCodeEndRE.MatchString(real)
+}
+
+func addrLooseUK(real string) *addrLocale {
+	if addrUSMarked(real) || addrUSStateZipRE.MatchString(real) || !addrUKStreetRE.MatchString(real) || !addrUKCountryRE.MatchString(real) {
 		return nil
 	}
-	if addrUKPostEndRE.MatchString(real) {
-		return addrUK
-	}
-	usTail := addrUSZipEndRE.MatchString(real) || addrUSStateEndRE.MatchString(real) && !addrEUTailRE.MatchString(real)
-	if !usTail {
-		if addrFRSureRE.MatchString(real) {
-			return addrFR
-		}
-		if m := addrFRMaybeRE.FindStringSubmatch(real); m != nil && (m[1] == strings.ToLower(m[1]) || addrEUTailRE.MatchString(real)) {
-			return addrFR
-		}
-	}
-	if real[0] >= '0' && real[0] <= '9' {
-		return nil
-	}
-	toks := addrTokenRE.FindAllStringIndex(real, -1)
-	first := strings.ToLower(real[toks[0][0]:toks[0][1]])
-	hasPT := addrPTPostRE.MatchString(real)
-	hasNL := addrNLPostRE.MatchString(real)
-	if len(toks) > 2 {
-		switch strings.ToLower(real[toks[2][0]:toks[2][1]]) {
-		case "do", "da", "dos", "das":
-			hasPT = hasPT || first == "avenida" || first == "av" || first == "largo"
-		}
+	return addrUK
+}
+
+func addrRomanceLocale(first, third string, hasPT bool) *addrLocale {
+	switch third {
+	case "do", "da", "dos", "das":
+		hasPT = hasPT || first == "avenida" || first == "av" || first == "largo"
 	}
 	switch {
 	case first == "avenida" || first == "av":
@@ -219,6 +313,103 @@ func addrLocaleOf(real string) *addrLocale {
 		return addrES
 	case addrIT.types[first]:
 		return addrIT
+	}
+	return nil
+}
+
+func addrNumberFirstLocale(real string, toks [][]int) *addrLocale {
+	text := func(i int) string {
+		if i >= len(toks) {
+			return ""
+		}
+		return real[toks[i][0]:toks[i][1]]
+	}
+	word := text(2)
+	c, _ := utf8.DecodeRuneInString(word)
+	if sep := text(1); sep != " " && sep != ", " || !unicode.IsLetter(c) || addrUSMarked(real) || addrUSStateZipRE.MatchString(real) || addrUSStateEndRE.MatchString(real) {
+		return nil
+	}
+	rest := real[toks[0][1]:]
+	hasNL := addrNLPostRE.MatchString(rest)
+	hasPT := addrPTPostRE.MatchString(rest)
+	euPost := addrEUTailRE.MatchString(rest) || hasPT
+	if !euPost && !hasNL && !addrFourPostRE.MatchString(rest) {
+		return nil
+	}
+	lineEnd := len(real)
+	if k := strings.IndexAny(real, ",\n"); k >= 0 {
+		lineEnd = k
+	}
+	tail := ""
+	for i := 4; i < len(toks) && toks[i][1] <= lineEnd; i++ {
+		if r0, _ := utf8.DecodeRuneInString(text(i)); unicode.IsLetter(r0) {
+			tail = strings.ToLower(text(i))
+		}
+	}
+	if addrEnglishTails[tail] {
+		return nil
+	}
+	low := strings.ToLower(word)
+	if loc := addrRomanceLocale(low, strings.ToLower(text(4)), hasPT); loc != nil {
+		if toks[0][1]-toks[0][0] > 3 && !euPost {
+			return nil
+		}
+		return loc
+	}
+	if !unicode.IsUpper(c) {
+		return nil
+	}
+	suffix := ""
+	if m := addrAttachedRE.FindStringSubmatch(word); m != nil {
+		suffix = strings.ToLower(m[1])
+	} else if next := strings.ToLower(text(4)); text(3) == " " && addrGermanicWords[next] && unicode.IsUpper([]rune(text(4))[0]) && !addrGermanicWords[low] {
+		suffix = next
+	}
+	switch {
+	case suffix == "":
+		return nil
+	case addrDutchSuffixes[suffix] || hasNL:
+		return addrNL
+	}
+	return addrDE
+}
+
+func addrLocaleOf(real string) *addrLocale {
+	if real == "" {
+		return nil
+	}
+	if pf, ok := addrPostcodeFirst(real); ok {
+		if loc := addrLocaleOf(pf.canon()); loc != nil && loc != addrUK {
+			return loc
+		}
+	}
+	if addrUKPostEndRE.MatchString(real) {
+		return addrUK
+	}
+	usTail := addrUSZipEndRE.MatchString(real) || addrUSStateEndRE.MatchString(real) && !addrEUTailRE.MatchString(real)
+	if !usTail {
+		if addrFRSureRE.MatchString(real) {
+			return addrFR
+		}
+		if m := addrFRMaybeRE.FindStringSubmatch(real); m != nil && (m[1] == strings.ToLower(m[1]) || addrEUTailRE.MatchString(real)) {
+			return addrFR
+		}
+	}
+	toks := addrTokenRE.FindAllStringIndex(real, -1)
+	if real[0] >= '0' && real[0] <= '9' {
+		if loc := addrNumberFirstLocale(real, toks); loc != nil {
+			return loc
+		}
+		return addrLooseUK(real)
+	}
+	first := strings.ToLower(real[toks[0][0]:toks[0][1]])
+	hasNL := addrNLPostRE.MatchString(real)
+	third := ""
+	if len(toks) > 2 {
+		third = strings.ToLower(real[toks[2][0]:toks[2][1]])
+	}
+	if loc := addrRomanceLocale(first, third, addrPTPostRE.MatchString(real)); loc != nil {
+		return loc
 	}
 	for i, t := range toks {
 		if i+2 >= len(toks) {
@@ -256,13 +447,13 @@ func addrLocaleOf(real string) *addrLocale {
 	if hasNL && (addrDutchLeadRE.MatchString(real) || addrGermanLeadRE.MatchString(real)) {
 		return addrNL
 	}
-	return nil
+	return addrLooseUK(real)
 }
 
 func (l *addrLocale) postalSpan(real string) (int, int) {
 	last := func(ms [][]int, a, b int) (int, int) {
 		for i := len(ms) - 1; i >= 0; i-- {
-			if ms[i][a] > 0 {
+			if ms[i][a] >= 0 {
 				return ms[i][a], ms[i][b]
 			}
 		}
@@ -348,18 +539,42 @@ func (r *rng) pickAvoid(list []string, avoid map[string]bool) string {
 	return list[start]
 }
 
-func (r *rng) pickPlace(list []addrPlace, avoid map[string]bool, codeLen int) addrPlace {
+func addrVowelStart(s string) bool {
+	f := textutil.Fold(s)
+	return f != "" && strings.IndexByte("aeiou", f[0]) >= 0
+}
+
+func (r *rng) pickPlace(list []addrPlace, avoid map[string]bool, codeLen int, vowel bool) addrPlace {
 	start := r.intn(len(list))
-	for k := range list {
-		p := list[(start+k)%len(list)]
-		if !avoid[textutil.Fold(p.name)] && (codeLen == 0 || len(p.code) == codeLen) {
-			return p
+	for pass := 0; pass < 2; pass++ {
+		for k := range list {
+			p := list[(start+k)%len(list)]
+			if !avoid[textutil.Fold(p.name)] && (codeLen == 0 || len(p.code) == codeLen) && (!vowel || pass > 0 || addrVowelStart(p.name)) {
+				return p
+			}
 		}
 	}
 	return list[start]
 }
 
 func (g *Generator) localAddress(r *rng, real string, loc *addrLocale) string {
+	if pf, ok := addrPostcodeFirst(real); ok && addrLocaleOf(pf.canon()) == loc {
+		out := g.localAddress(r, pf.canon(), loc)
+		k := strings.LastIndex(out, ", ")
+		if out == pf.canon() || k < 0 {
+			return real
+		}
+		if !pf.trailing {
+			return out[k+2:] + pf.sep + out[:k]
+		}
+		street := pf.rest[:strings.LastIndex(pf.rest, ", ")]
+		lead := g.localAddress(r, street+", "+pf.post, loc)
+		l := strings.LastIndex(lead, ", ")
+		if l < 0 || lead == street+", "+pf.post {
+			return real
+		}
+		return lead[l+2:] + pf.sep + out
+	}
 	toks := addrTokenRE.FindAllStringIndex(real, -1)
 	n := len(toks)
 	text := func(i int) string { return real[toks[i][0]:toks[i][1]] }
@@ -468,7 +683,7 @@ func (g *Generator) localAddress(r *rng, real string, loc *addrLocale) string {
 			codeLen++
 		}
 	}
-	place := r.pickPlace(places, avoid, codeLen)
+	place := r.pickPlace(places, avoid, codeLen, primaryTok >= 0 && addrLocElisionRE.MatchString(text(primaryTok)))
 	avoid[textutil.Fold(place.name)] = true
 
 	germanic := loc.id == "de" || loc.id == "nl"
@@ -506,14 +721,13 @@ func (g *Generator) localAddress(r *rng, real string, loc *addrLocale) string {
 			j = k
 		}
 	}
-	cityName := func(i int, src string) string {
-		if i == primaryTok || primaryTok < 0 && !usedPrimary {
-			usedPrimary = true
-			return matchWordCase(src, place.name)
-		}
-		return matchWordCase(src, r.pickPlace(places, avoid, 0).name)
+	var b strings.Builder
+	pickWord := func(src string, list []string) string {
+		w := r.pickAvoid(list, avoid)
+		avoid[textutil.Fold(w)] = true
+		return matchWordCase(src, w)
 	}
-	streetName := func(src, key string) string {
+	streetList := func(key string) []string {
 		list := loc.streets[key]
 		if list == nil {
 			list = loc.streets[""]
@@ -521,16 +735,193 @@ func (g *Generator) localAddress(r *rng, real string, loc *addrLocale) string {
 		if list == nil {
 			list = loc.streets["de"]
 		}
+		return list
+	}
+	elision := func(tok string) (string, string) {
+		if !addrLocElisionRE.MatchString(tok) {
+			return "", tok
+		}
+		k := strings.IndexAny(tok, "'’")
+		_, size := utf8.DecodeRuneInString(tok[k:])
+		return tok[:k+size], tok[k+size:]
+	}
+	const (
+		runKeep = iota
+		runConn
+		runElided
+		runName
+	)
+	streetClass := func(k int, head bool) int {
+		tok := text(k)
+		low := strings.ToLower(tok)
+		switch {
+		case addrLocElisionRE.MatchString(tok):
+			return runElided
+		case head:
+			return runName
+		case addrRomanRE.MatchString(tok) || loc.id == "uk" && addrUKTypes[low]:
+			return runKeep
+		case addrConnWords[low]:
+			return runConn
+		}
+		return runName
+	}
+	streetRun := func(i int) int {
+		end := runEnd(i)
+		var groups []int
+		open := false
+		for k := i; k <= end; k++ {
+			if !isWord(k) {
+				continue
+			}
+			switch streetClass(k, k == i) {
+			case runName:
+				if !open {
+					groups = append(groups, 0)
+					open = true
+				}
+				groups[len(groups)-1]++
+			case runConn, runElided:
+				open = false
+			}
+		}
+		key := slot
+		gi, pi := 0, 0
+		for k := i; k <= end; k++ {
+			tok := text(k)
+			if !isWord(k) {
+				b.WriteString(tok)
+				continue
+			}
+			switch streetClass(k, k == i) {
+			case runKeep:
+				b.WriteString(tok)
+			case runConn:
+				b.WriteString(tok)
+				key = strings.ToLower(tok)
+			case runElided:
+				prefix, rest := elision(tok)
+				key = "l'"
+				if strings.EqualFold(strings.TrimRight(prefix, "'’"), "d") {
+					key = "d'"
+				}
+				b.WriteString(prefix + pickWord(rest, streetList(key)))
+				key = ""
+			default:
+				size := groups[gi]
+				var list []string
+				switch {
+				case size == 1:
+					list = streetList(key)
+					if germanic && loc.family != nil && k+1 < n && text(k+1) == "-" {
+						list = loc.family
+					}
+				case pi < size-1:
+					list = loc.given
+					if pi == 0 && loc.titleSlot[key] {
+						list = loc.titles
+					}
+				default:
+					list = loc.family
+				}
+				if list == nil {
+					list = streetList("")
+				}
+				b.WriteString(pickWord(tok, list))
+				key = ""
+				if pi++; pi == size {
+					gi, pi = gi+1, 0
+				}
+			}
+		}
 		slot = ""
 		seenStreet = true
-		return matchWordCase(src, r.pickAvoid(list, avoid))
+		return end
+	}
+	cityRun := func(i int) int {
+		end := runEnd(i)
+		usePlace := i == primaryTok || primaryTok < 0 && !usedPrimary
+		if usePlace {
+			usedPrimary = true
+		}
+		heads := 0
+		for k := i; k <= end; k++ {
+			if !isWord(k) {
+				continue
+			}
+			if addrConnWords[strings.ToLower(text(k))] {
+				if heads > 0 {
+					break
+				}
+				continue
+			}
+			if heads > 0 && addrLocElisionRE.MatchString(text(k)) {
+				break
+			}
+			heads++
+		}
+		seen, interior, key := 0, false, ""
+		for k := i; k <= end; k++ {
+			tok := text(k)
+			if !isWord(k) {
+				b.WriteString(tok)
+				continue
+			}
+			low := strings.ToLower(tok)
+			prefix, rest := elision(tok)
+			switch {
+			case addrConnWords[low]:
+				b.WriteString(tok)
+				interior = interior || seen > 0
+				key = low
+			case interior || prefix != "" && seen > 0:
+				interior = true
+				list := loc.cityTail
+				if art := loc.streets[key]; loc.typeFirst && art != nil && prefix == "" && key != "" && key != "de" && key != "di" {
+					list = art
+				}
+				if prefix != "" {
+					var vowels []string
+					for _, w := range list {
+						if addrVowelStart(w) {
+							vowels = append(vowels, w)
+						}
+					}
+					if vowels != nil {
+						list = vowels
+					}
+				}
+				b.WriteString(prefix + pickWord(rest, list))
+			case seen < heads-1:
+				b.WriteString(pickWord(tok, loc.cityLead))
+				seen++
+			default:
+				name := place.name
+				if !usePlace {
+					name = r.pickPlace(places, avoid, 0, prefix != "").name
+				}
+				b.WriteString(prefix + matchWordCase(rest, name))
+				seen++
+			}
+		}
+		return end
 	}
 
-	var b strings.Builder
+	repeat := -1
+	if pIdx >= 2 && text(pIdx-1) == " " && text(pIdx-2) == real[ps:pe] {
+		repeat = pIdx - 2
+	}
 	for i := 0; i < n; i++ {
 		tok := text(i)
+		if repeat >= 0 && (i == repeat || i == repeat+1) {
+			continue
+		}
 		if i == pIdx {
-			b.WriteString(loc.postal(r, real[ps:pe], place))
+			pc := loc.postal(r, real[ps:pe], place)
+			if repeat >= 0 {
+				b.WriteString(pc + " ")
+			}
+			b.WriteString(pc)
 			for i+1 < n && toks[i+1][0] < pe {
 				i++
 			}
@@ -546,7 +937,11 @@ func (g *Generator) localAddress(r *rng, real string, loc *addrLocale) string {
 			if len(tok) >= 4 && seenStreet && seenNumber {
 				city = true
 			}
-			b.WriteString(r.digits(len(tok), tok[0] != '0' && len(tok) < 5))
+			d := r.digits(len(tok), tok[0] != '0' && len(tok) < 5)
+			for k := 0; d == tok && k < 16; k++ {
+				d = r.digits(len(tok), tok[0] != '0' && len(tok) < 5)
+			}
+			b.WriteString(d)
 			seenNumber = true
 			slot = ""
 		case !isWord(i):
@@ -574,8 +969,7 @@ func (g *Generator) localAddress(r *rng, real string, loc *addrLocale) string {
 				slot = low
 				b.WriteString(tok)
 			case city && addrConnWords[low] && !single && i+2 < n && text(i+1) == " " && isName(i+2):
-				b.WriteString(cityName(i, tok))
-				i = runEnd(i + 2)
+				i = cityRun(i)
 			case addrConnWords[low] && !single || addrUnitWords[low]:
 				slot = low
 				b.WriteString(tok)
@@ -587,24 +981,15 @@ func (g *Generator) localAddress(r *rng, real string, loc *addrLocale) string {
 					b.WriteString(tok)
 				}
 			case addrLocElisionRE.MatchString(tok):
-				k := strings.IndexAny(tok, "'’")
-				_, size := utf8.DecodeRuneInString(tok[k:])
-				rest := tok[k+size:]
 				if city {
-					b.WriteString(cityName(i, rest))
+					i = cityRun(i)
 				} else {
-					key := "l'"
-					if strings.EqualFold(tok[:k], "d") {
-						key = "d'"
-					}
-					b.WriteString(tok[:k+size] + streetName(rest, key))
+					i = streetRun(i)
 				}
-				i = runEnd(i)
-			case !unicode.IsUpper(c):
+			case !unicode.IsUpper(c) || addrRomanRE.MatchString(tok):
 				b.WriteString(tok)
 			case city:
-				b.WriteString(cityName(i, tok))
-				i = runEnd(i)
+				i = cityRun(i)
 			default:
 				if m := addrAttachedRE.FindStringSubmatch(tok); m != nil && germanic {
 					suffix := strings.ToLower(m[1])
@@ -616,8 +1001,7 @@ func (g *Generator) localAddress(r *rng, real string, loc *addrLocale) string {
 					slot = ""
 					b.WriteString(matchWordCase(tok, stem+suffix))
 				} else {
-					b.WriteString(streetName(tok, slot))
-					i = runEnd(i)
+					i = streetRun(i)
 				}
 			}
 		}

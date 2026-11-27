@@ -21,7 +21,15 @@ var (
 
 	remoteHandleRE = regexp.MustCompile(`\b(?:origin|upstream|remotes/[A-Za-z0-9_\-]+|refs/heads|refs/remotes/[A-Za-z0-9_\-]+)/([a-z][a-z0-9._\-]{1,30})/[A-Za-z0-9]`)
 
+	gitHandleRE = regexp.MustCompile(`(?:\bgit[ \t]+(?:push|pull|fetch)(?:[ \t]+-{1,2}[A-Za-z][A-Za-z\-]*)*[ \t]+[A-Za-z0-9_.\-]+|\bgit[ \t]+(?:branch|switch|rebase|checkout)(?:[ \t]+-{1,2}[A-Za-z][A-Za-z\-]*)*|\bgh[ \t]+pr[ \t]+checkout|(?i:\b(?:PR|pull[ \t]+request|MR|merge[ \t]+request)(?:[ \t]+[#!]?[0-9]{1,7})?[ \t]+from|\brebased[ \t]+onto|\bbased[ \t]+on|\boff[ \t]+of))[ \t]+["'\x60]?([a-z][a-z0-9._\-]{1,30})/[A-Za-z0-9]`)
+
+	gitPathHandleRE = regexp.MustCompile(`\bgit[ \t]+(?:log|diff)(?:[ \t]+-{1,2}[A-Za-z][A-Za-z\-=0-9]*)*[ \t]+(?:[A-Za-z0-9_\-]+\.{2,3})?(?:origin/|upstream/)?([a-z][a-z0-9._\-]{1,30})/[A-Za-z0-9]`)
+
+	forkHandleRE = regexp.MustCompile(`(?:^|[\s"'\x60(\[,])([a-z][a-z0-9\-]{2,30}):[a-z0-9][A-Za-z0-9._\-]*(?:/[A-Za-z0-9._\-]+)*`)
+
 	mentionHandleRE = regexp.MustCompile(`(?:^|[\s(\[{,;:>"'\x60*])@([a-z][a-z0-9._\-]{1,30})`)
+
+	proseHandleRE = regexp.MustCompile(`(?i:\b(ask|ping|cc|assigned to|assignee|reviewer|owner|thanks|per|from|by|with|poke|loop in|tag|blame))(?::[ \t]?|[ \t])@?([a-z][a-z0-9]{3,23})`)
 
 	trailerRE = regexp.MustCompile(`(?im)^[ \t>*\-]*(?:reviewed|co-authored|signed-off|acked|tested|reported|suggested|helped|authored|approved|committed|requested|merged|co-developed)-by:[ \t]*([^\n<]*)`)
 )
@@ -179,6 +187,102 @@ func usernameLike(h string) bool {
 	return utf8.RuneCountInString(body) >= 3
 }
 
+var weakHandleCues = wordSet(`per from by with`)
+
+var todoTopics = wordSet(`august january than carlo`)
+
+func todoName(h string) bool {
+	lh := textutil.Fold(h)
+	if !lettersOnly(lh) || len(lh) < 3 || handleStop[lh] || techTerms[lh] || dateAbbrev[lh] || todoTopics[lh] {
+		return false
+	}
+	_, ok := namedata.LookupGiven(lh)
+	return ok
+}
+
+func SplitNameInitial(h string) (given, initial, digits string, ok bool) {
+	body, digits := handleBody(h)
+	if !lettersOnly(body) || len(body) < 5 || handleWordish(body) || textutil.IsCommonWord(body) || namedata.IsHandleWord(body) || KnownName(body) {
+		return "", "", "", false
+	}
+	if _, _, strength := splitHandleBody(body); strength != handleNone {
+		return "", "", "", false
+	}
+	first := body[:len(body)-1]
+	g, known := namedata.LookupGiven(first)
+	if !known || g.Weak || len(first) < 4 || handleWordish(first) || textutil.IsCommonWord(first) {
+		return "", "", "", false
+	}
+	return first, body[len(body)-1:], digits, true
+}
+
+func proseHandle(h string, weakCue bool) bool {
+	if handleStop[h] || strings.HasSuffix(h, "bot") || textutil.IsCommonWord(h) || namedata.IsHandleWord(h) || KnownName(h) {
+		return false
+	}
+	body, _ := handleBody(h)
+	if !lettersOnly(body) || handleWordish(body) || textutil.IsCommonWord(body) || namedata.IsHandleWord(body) || KnownName(body) {
+		return false
+	}
+	given, family, strength := splitHandleBody(body)
+	if strength == handleStrong || (strength == handleWeak && !weakCue && len(given) == 1 && len(family) >= 3) {
+		return true
+	}
+	_, _, _, ok := SplitNameInitial(h)
+	return ok
+}
+
+func proseHandleSpans(text string, emit func(s, e int)) {
+	for _, m := range proseHandleRE.FindAllStringSubmatchIndex(text, -1) {
+		s, e := m[4], m[5]
+		if m[2] > 0 {
+			r, _ := utf8.DecodeLastRuneInString(text[:m[2]])
+			if strings.ContainsRune("@./_\\#$%&=+~-", r) {
+				continue
+			}
+		}
+		if e < len(text) {
+			r, _ := utf8.DecodeRuneInString(text[e:])
+			if textutil.IsWordRune(r) || strings.ContainsRune("@(_\\/=+~-[{<'’", r) {
+				continue
+			}
+			if r == '.' && e+1 < len(text) && textutil.IsWordRune(rune(text[e+1])) {
+				continue
+			}
+		}
+		h := text[s:e]
+		if !textutil.IsAllLower(h) {
+			continue
+		}
+		if proseHandle(h, weakHandleCues[strings.ToLower(text[m[2]:m[3]])]) {
+			emit(s, e)
+		}
+	}
+}
+
+func personalHandle(h string) bool {
+	if handleSignal(h) != handleStrong {
+		return false
+	}
+	if strings.ContainsAny(h, "._-") {
+		return true
+	}
+	body, _ := handleBody(h)
+	_, _, strength := splitHandleBody(body)
+	return strength == handleStrong
+}
+
+func forkRef(text string, m []int) bool {
+	ref := text[m[3]+1 : m[1]]
+	if m[1] < len(text) && strings.ContainsRune(":/@=\\", rune(text[m[1]])) {
+		return false
+	}
+	if strings.HasPrefix(ref, "/") || !textutil.HasLetter(ref) {
+		return false
+	}
+	return strings.ContainsAny(ref, "-_/") || handleStop[ref]
+}
+
 func trimHandle(text string, s, e int) int {
 	for e > s && strings.ContainsRune("._-", rune(text[e-1])) {
 		e--
@@ -197,7 +301,7 @@ func handleSpans(text string) []entity.Span {
 	}
 	if strings.Contains(text, "(") {
 		for _, m := range todoHandleRE.FindAllStringSubmatchIndex(text, -1) {
-			if handleSignal(text[m[2]:m[3]]) != handleNone {
+			if h := text[m[2]:m[3]]; handleSignal(h) != handleNone || todoName(h) {
 				emit(m[2], m[3])
 			}
 		}
@@ -214,11 +318,23 @@ func handleSpans(text string) []entity.Span {
 		}
 	}
 	if strings.Contains(text, "/") {
-		for _, re := range []*regexp.Regexp{branchHandleRE, remoteHandleRE} {
+		for _, re := range []*regexp.Regexp{branchHandleRE, remoteHandleRE, gitHandleRE} {
 			for _, m := range re.FindAllStringSubmatchIndex(text, -1) {
 				if handleSignal(text[m[2]:m[3]]) == handleStrong {
 					emit(m[2], m[3])
 				}
+			}
+		}
+		for _, m := range gitPathHandleRE.FindAllStringSubmatchIndex(text, -1) {
+			if personalHandle(text[m[2]:m[3]]) {
+				emit(m[2], m[3])
+			}
+		}
+	}
+	if strings.Contains(text, ":") {
+		for _, m := range forkHandleRE.FindAllStringSubmatchIndex(text, -1) {
+			if forkRef(text, m) && personalHandle(text[m[2]:m[3]]) {
+				emit(m[2], m[3])
 			}
 		}
 	}
@@ -227,6 +343,9 @@ func handleSpans(text string) []entity.Span {
 			e := trimHandle(text, m[2], m[3])
 			rest := text[e:]
 			if rest != "" && strings.ContainsRune("/(@[=\\", rune(rest[0])) {
+				continue
+			}
+			if r, _ := utf8.DecodeRuneInString(text[m[3]:]); m[3] < len(text) && (textutil.IsWordRune(r) || r == '_') {
 				continue
 			}
 			if strings.HasPrefix(rest, ":") && len(rest) > 1 && rest[1] != ' ' && rest[1] != '\n' {
@@ -240,6 +359,7 @@ func handleSpans(text string) []entity.Span {
 			}
 		}
 	}
+	proseHandleSpans(text, emit)
 	if strings.Contains(text, "-by:") || strings.Contains(text, "-By:") || strings.Contains(text, "-BY:") {
 		for _, m := range trailerRE.FindAllStringSubmatchIndex(text, -1) {
 			s, e := m[2], m[3]

@@ -25,9 +25,15 @@ func RuneAt(s string, i int) rune {
 	return r
 }
 
-func IsBoundaryBefore(s string, i int) bool { return !IsWordRune(RuneBefore(s, i)) }
+func IsBoundaryBefore(s string, i int) bool {
+	return !IsWordRune(RuneBefore(s, i)) || i >= 3 && s[i-3] == '%' && isHex(s[i-2]) && isHex(s[i-1])
+}
 
-func IsBoundaryAfter(s string, i int) bool { return !IsWordRune(RuneAt(s, i)) }
+func IsBoundaryAfter(s string, i int) bool {
+	return !IsWordRune(RuneAt(s, i)) || i+2 < len(s) && s[i] == '%' && isHex(s[i+1]) && isHex(s[i+2])
+}
+
+func isHex(c byte) bool { return c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F' }
 
 type Token struct {
 	Start, End int
@@ -190,14 +196,20 @@ func (m *Matcher) FindAll(s string) []Match {
 		return nil
 	}
 	best := map[int]Match{}
-	for _, t := range Tokens(s) {
-		for _, p := range m.candidates(s, t) {
-			start, end, ok := m.matchAt(s, t, p)
-			if !ok {
-				continue
-			}
-			if cur, seen := best[start]; !seen || end > cur.End {
-				best[start] = Match{start, end, p.id}
+	for _, tok := range Tokens(s) {
+		ts := []Token{tok}
+		if tok.Start >= 1 && tok.Start+2 < tok.End && s[tok.Start-1] == '%' && isHex(s[tok.Start]) && isHex(s[tok.Start+1]) {
+			ts = append(ts, Token{tok.Start + 2, tok.End})
+		}
+		for _, t := range ts {
+			for _, p := range m.candidates(s, t) {
+				start, end, ok := m.matchAt(s, t, p)
+				if !ok {
+					continue
+				}
+				if cur, seen := best[start]; !seen || end > cur.End {
+					best[start] = Match{start, end, p.id}
+				}
 			}
 		}
 	}

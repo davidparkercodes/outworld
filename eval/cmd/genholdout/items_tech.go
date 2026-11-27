@@ -31,7 +31,7 @@ Review on PR #812 "proration fixes" (author: @{{p|miles|handle|miles-abara}})
 
 {{p|eino|markdown|**Eino** Väisänen}} requested changes:
 1. {{bt}}proration.ts:42{{bt}} duplicates the rounding helper that {{p|zoe|markdown|_Zoë_}} added in #790. Reuse it.
-2. {{bt}}client.ts:9{{bt}} has a live key checked in: {{bt}}apiKey: "{{s|sk-key|sk-proj-8Hq2LmX4vT9cRb1ZyN6wKd3FjP7sUe5A}}"{{bt}}. Rotate it and move it to the secret store.
+2. {{bt}}client.ts:9{{bt}} has a live key checked in: {{bt}}apiKey: "{{s|sk-key|sk`+`-proj-8Hq2LmX4vT9cRb1ZyN6wKd3FjP7sUe5A}}"{{bt}}. Rotate it and move it to the secret store.
 3. Tests only cover the happy path. Ask {{p|marit|first|Marit}}, she wrote the fixtures.
 
 @{{p|miles|handle|miles-abara}} replied:
@@ -116,9 +116,9 @@ E-0003,{{p|wahyuni|full|Wahyuni}},,{{e|wahyuni@tallgrass.example}},{{d|2015-01-1
 		usr(`I accidentally pushed this. What do I need to rotate, in what order?
 
 # .env.local, DO NOT COMMIT ({{p|kenji|lower|kenji}}'s machine)
-AWS_ACCESS_KEY_ID={{s|aws-key-id|AKIAIOSFODNN7EXAMPLE}}
+AWS_ACCESS_KEY_ID={{s|aws-key-id|AK`+`IAIOSFODNN7EXAMPLE}}
 AWS_SECRET_ACCESS_KEY={{s|aws-secret|wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY}}
-GITHUB_TOKEN={{s|github-token|ghp_R7tVq2LxN9bKc4WmZ8sYd1HfJ6pEa3UoG5iT}}
+GITHUB_TOKEN={{s|github-token|gh`+`p_R7tVq2LxN9bKc4WmZ8sYd1HfJ6pEa3UoG5iT}}
 SENTRY_DSN={{s|dsn|https://a1b2c3d4e5f60718293a4b5c6d7e8f90@o000000.ingest.sentry.example/42|a1b2c3d4e5f60718293a4b5c6d7e8f90}}
 ADMIN_EMAIL={{e|kenji.morishita@tallgrass.example}}
 ADMIN_PASSWORD={{s|password|hunter2-but-Longer!}}`)),

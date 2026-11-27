@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -25,6 +24,8 @@ type decision struct {
 	reason   string
 }
 
+var errBadMedia = errors.New("request contains image, audio or file data that does not match its declared type; the gateway only forwards media it can verify")
+
 var errNonText = errors.New("request contains non-text content (images, audio or files) which cannot be masked; set policy.allow_images or use the local route")
 
 func (s *Server) chat(w http.ResponseWriter, r *http.Request) { s.handle(w, r, "/chat/completions") }
@@ -39,6 +40,7 @@ type logInfo struct {
 	stream                  bool
 	stats                   outworld.Stats
 	violations              []outworld.Violation
+	dryRun                  bool
 	unknownNames            int
 	errKind                 string
 }
@@ -47,6 +49,11 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request, path string) {
 	start := time.Now()
 	li := &logInfo{}
 	defer func() { s.logRequest(path, start, li) }()
+	if s.scopeTooLong(r) {
+		li.status, li.errKind = http.StatusBadRequest, "scope"
+		writeError(w, li.status, "outworld_bad_request", HeaderScope+" is longer than 256 bytes")
+		return
+	}
 
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, s.cfg.MaxBodyBytes))
 	if err != nil {
@@ -62,9 +69,13 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request, path string) {
 	}
 	li.stream, _ = req["stream"].(bool)
 
-	d, err := s.decide(r.Context(), r, requestText(req), config.APIOpenAI)
+	target := path
+	if r.URL.RawQuery != "" {
+		target += "?" + r.URL.RawQuery
+	}
+	d, err := s.decide(r.Context(), r, s.routingText(req, config.APIOpenAI), config.APIOpenAI)
 	if err != nil {
-		li.status, li.errKind = http.StatusBadGateway, "route"
+		li.status, li.errKind = routeStatus(err), "route"
 		w.Header().Set(HeaderRoute, config.RouteBlock)
 		writeError(w, li.status, "outworld_route_error", err.Error())
 		return
@@ -73,14 +84,19 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request, path string) {
 	w.Header().Set(HeaderRoute, d.route)
 	w.Header().Set(HeaderRouteReason, d.reason)
 
+	if isDryRun(r) {
+		li.dryRun = true
+		li.status = s.writeDryRun(w, r, config.APIOpenAI, d, req, li)
+		return
+	}
 	switch d.route {
 	case config.RouteBlock:
 		li.status = http.StatusForbidden
 		writeError(w, li.status, "outworld_blocked", "request blocked by outworld policy ("+d.reason+")")
 	case config.RouteLocal, config.RoutePassthrough:
-		li.status = s.forwardRaw(w, r, s.upstreams[d.upstream], path, body, req, writeError)
+		li.status = s.forwardRaw(w, r, s.upstreams[d.upstream], target, body, req, writeError)
 	case config.RouteMasked:
-		li.status = s.forwardMasked(w, r, s.upstreams[d.upstream], path, req, li)
+		li.status = s.forwardMasked(w, r, s.upstreams[d.upstream], target, req, li)
 	}
 }
 
@@ -107,6 +123,9 @@ func (s *Server) logRequest(path string, start time.Time, li *logInfo) {
 	if li.errKind != "" {
 		attrs = append(attrs, "error", li.errKind)
 	}
+	if li.dryRun {
+		attrs = append(attrs, "dry_run", true)
+	}
 	s.log.Info("request", attrs...)
 }
 
@@ -129,31 +148,6 @@ func encode(v any) []byte {
 	enc.SetEscapeHTML(false)
 	enc.Encode(v)
 	return bytes.TrimRight(buf.Bytes(), "\n")
-}
-
-func requestText(req map[string]any) string {
-	var parts []string
-	var walk func(v any)
-	walk = func(v any) {
-		switch t := v.(type) {
-		case string:
-			parts = append(parts, t)
-		case []any:
-			for _, x := range t {
-				walk(x)
-			}
-		case map[string]any:
-			for k, x := range t {
-				if k == "role" || k == "type" || k == "tool_call_id" || k == "id" {
-					continue
-				}
-				walk(x)
-			}
-		}
-	}
-	walk(req["messages"])
-	walk(req["prompt"])
-	return strings.Join(parts, "\n")
 }
 
 func (s *Server) upstreamFor(route, explicit, api string) (string, error) {
@@ -192,42 +186,70 @@ func (s *Server) upstreamFor(route, explicit, api string) (string, error) {
 	return name, nil
 }
 
-func (s *Server) decide(ctx context.Context, r *http.Request, text, api string) (decision, error) {
-	var detected map[entity.Type]bool
-	var detectErr error
-	detectTypes := func() (map[entity.Type]bool, error) {
-		if detected != nil || detectErr != nil {
-			return detected, detectErr
+func (s *Server) entityTypes(ctx context.Context, rt routeText) (map[entity.Type]bool, error) {
+	found := map[entity.Type]bool{}
+	scan := func(text string, keep func(entity.Span) bool) error {
+		if text == "" {
+			return nil
 		}
 		spans, err := s.engine.Detect(ctx, text)
 		if err != nil {
-			detectErr = err
+			return err
+		}
+		for _, sp := range spans {
+			if keep(sp) {
+				found[sp.Type] = true
+			}
+		}
+		return nil
+	}
+	all := func(entity.Span) bool { return true }
+	if err := scan(rt.full, all); err != nil {
+		return nil, err
+	}
+	if err := scan(rt.narrow, func(sp entity.Span) bool { return narrowSource(sp.Source) }); err != nil {
+		return nil, err
+	}
+	if err := scan(rt.decoded, func(sp entity.Span) bool { return !opaqueNoise(sp.Source) }); err != nil {
+		return nil, err
+	}
+	for _, run := range rt.binary {
+		if err := scan(run, func(sp entity.Span) bool { return binarySources[sp.Source] }); err != nil {
 			return nil, err
 		}
-		detected = map[entity.Type]bool{}
-		for _, sp := range spans {
-			detected[sp.Type] = true
-		}
-		return detected, nil
 	}
-	ruleMatches := func(rule *config.Rule) (bool, error) {
-		if rule.MatchText(text) {
+	return found, nil
+}
+
+type ruleMatcher func(rule *config.Rule) (bool, error)
+
+func (s *Server) matcher(ctx context.Context, rt routeText) ruleMatcher {
+	var detected map[entity.Type]bool
+	var detectErr error
+	return func(rule *config.Rule) (bool, error) {
+		if rule.MatchText(rt.full) || rule.MatchText(rt.narrow) || rule.MatchText(rt.raw) || rule.MatchText(rt.decoded) || binaryBlocks(rt, rule) {
 			return true, nil
 		}
 		if len(rule.EntityTypes()) == 0 {
 			return false, nil
 		}
-		types, err := detectTypes()
-		if err != nil {
-			return false, err
+		if detected == nil && detectErr == nil {
+			detected, detectErr = s.entityTypes(ctx, rt)
+		}
+		if detectErr != nil {
+			return false, detectErr
 		}
 		for _, t := range rule.EntityTypes() {
-			if types[t] {
+			if detected[t] {
 				return true, nil
 			}
 		}
 		return false, nil
 	}
+}
+
+func (s *Server) decide(ctx context.Context, r *http.Request, rt routeText, api string) (decision, error) {
+	ruleMatches := s.matcher(ctx, rt)
 	rules := s.cfg.Policy.Rules
 	for i := range rules {
 		if rules[i].Route != config.RouteBlock {
@@ -241,20 +263,74 @@ func (s *Server) decide(ctx context.Context, r *http.Request, text, api string) 
 			return decision{route: config.RouteBlock, reason: ruleName(rules[i], i)}, nil
 		}
 	}
-	if h := strings.TrimSpace(r.Header.Get(HeaderRoute)); h != "" && s.cfg.RouteHeaderAllowed() {
-		route, up, _ := strings.Cut(strings.ToLower(h), ":")
-		route = strings.TrimSpace(route)
-		switch route {
-		case config.RouteMasked, config.RouteLocal, config.RoutePassthrough, config.RouteBlock:
-		default:
-			return decision{}, fmt.Errorf("invalid %s header value", HeaderRoute)
-		}
-		name, err := s.upstreamFor(route, strings.TrimSpace(up), api)
+	h := strings.TrimSpace(r.Header.Get(HeaderRoute))
+	if h == "" || !s.cfg.RouteHeaderAllowed() {
+		return s.ruleDecision(rules, ruleMatches, api)
+	}
+	return s.headerDecision(h, rules, ruleMatches, api)
+}
+
+func (s *Server) headerDecision(h string, rules []config.Rule, ruleMatches ruleMatcher, api string) (decision, error) {
+	route, up, _ := strings.Cut(h, ":")
+	route = strings.ToLower(strings.TrimSpace(route))
+	up = strings.TrimSpace(up)
+	if _, ok := routeRank[route]; !ok {
+		return decision{}, &routeError{http.StatusBadRequest, fmt.Sprintf("invalid %s header value", HeaderRoute)}
+	}
+	if s.cfg.RouteHeaderUnrestricted() {
+		name, err := s.upstreamFor(route, up, api)
 		if err != nil {
-			return decision{}, err
+			return decision{}, &routeError{http.StatusBadRequest, err.Error()}
 		}
 		return decision{route: route, upstream: name, reason: "header"}, nil
 	}
+	if route == config.RouteBlock {
+		return decision{route: config.RouteBlock, reason: "header"}, nil
+	}
+	d, err := s.ruleDecision(rules, ruleMatches, api)
+	if err != nil {
+		return decision{}, err
+	}
+	if up != "" && !(route == d.route && up == d.upstream) {
+		def, err := s.upstreamFor(route, "", api)
+		if err != nil {
+			return decision{}, &routeError{http.StatusBadRequest, err.Error()}
+		}
+		if def != up {
+			return decision{}, &routeError{http.StatusForbidden, fmt.Sprintf("%s may only name the upstream that route already uses unless policy.allow_route_header is true", HeaderRoute)}
+		}
+	}
+	switch {
+	case routeRank[route] < routeRank[d.route]:
+		return decision{}, &routeError{http.StatusForbidden, fmt.Sprintf("%s may only make routing stricter (block, then local, then masked, then passthrough) unless policy.allow_route_header is true", HeaderRoute)}
+	case routeRank[route] == routeRank[d.route]:
+		return d, nil
+	}
+	name, err := s.upstreamFor(route, "", api)
+	if err != nil {
+		return decision{}, &routeError{http.StatusBadRequest, err.Error()}
+	}
+	return decision{route: route, upstream: name, reason: "header"}, nil
+}
+
+var routeRank = map[string]int{config.RouteBlock: 3, config.RouteLocal: 2, config.RouteMasked: 1, config.RoutePassthrough: 0}
+
+type routeError struct {
+	status int
+	msg    string
+}
+
+func (e *routeError) Error() string { return e.msg }
+
+func routeStatus(err error) int {
+	var re *routeError
+	if errors.As(err, &re) {
+		return re.status
+	}
+	return http.StatusBadGateway
+}
+
+func (s *Server) ruleDecision(rules []config.Rule, ruleMatches ruleMatcher, api string) (decision, error) {
 	for i := range rules {
 		ok, err := ruleMatches(&rules[i])
 		if err != nil {
@@ -316,15 +392,30 @@ func (s *Server) forwardRaw(w http.ResponseWriter, r *http.Request, up *upstream
 		return http.StatusBadGateway
 	}
 	defer resp.Body.Close()
+	drained := func() bool { return false }
+	if strings.Contains(resp.Header.Get("Content-Type"), "text/event-stream") {
+		var stop func()
+		stop, drained = s.closeOnDrain(resp.Body)
+		defer stop()
+	}
 	copyHeaders(w.Header(), resp.Header)
 	w.WriteHeader(resp.StatusCode)
 	fl, _ := w.(http.Flusher)
 	buf := make([]byte, 32*1024)
+	done := false
+	tail := []byte("\n")
 	for {
 		n, rerr := resp.Body.Read(buf)
 		if n > 0 {
 			if _, werr := w.Write(buf[:n]); werr != nil {
 				break
+			}
+			tail = append(tail, buf[:n]...)
+			if streamFinished(tail) {
+				done = true
+			}
+			if len(tail) > 64 {
+				tail = append(tail[:0], tail[len(tail)-64:]...)
 			}
 			if fl != nil {
 				fl.Flush()
@@ -334,7 +425,24 @@ func (s *Server) forwardRaw(w http.ResponseWriter, r *http.Request, up *upstream
 			break
 		}
 	}
+	if drained() && !done {
+		io.WriteString(w, "\n\n")
+		writeShutdownEvent(w, up.cfg.APIKind())
+		if fl != nil {
+			fl.Flush()
+		}
+	}
 	return resp.StatusCode
+}
+
+func streamFinished(b []byte) bool {
+	return bytes.Contains(b, []byte("\ndata: [DONE]")) || bytes.Contains(b, []byte("\ndata:[DONE]")) || bytes.Contains(b, []byte("\nevent: message_stop"))
+}
+
+const maxScopeLen = 256
+
+func (s *Server) scopeTooLong(r *http.Request) bool {
+	return s.cfg.Policy.AllowScopeHeader && len(strings.TrimSpace(r.Header.Get(HeaderScope))) > maxScopeLen
 }
 
 func (s *Server) scope(r *http.Request) string {
@@ -348,33 +456,21 @@ func (s *Server) scope(r *http.Request) string {
 
 func (s *Server) forwardMasked(w http.ResponseWriter, r *http.Request, up *upstream, path string, req map[string]any, li *logInfo) int {
 	sess := s.engine.NewSession(s.scope(r))
-	sess.SetPriming(true)
-	err := s.maskRequest(r.Context(), sess, req)
-	sess.SetPriming(false)
-	if err == nil {
-		err = s.maskRequest(r.Context(), sess, req)
-	}
+	narrow, err := s.maskTwice(r.Context(), sess, req, config.APIOpenAI)
 	li.stats = sess.Stats()
 	if err != nil {
-		if errors.Is(err, errNonText) {
-			writeError(w, http.StatusUnprocessableEntity, "outworld_unsupported_content", err.Error())
-			li.errKind = "non_text"
-			return http.StatusUnprocessableEntity
-		}
-		writeError(w, http.StatusBadGateway, "outworld_detection_error", "detection failed; request not sent (fail closed)")
-		li.errKind = "detect"
-		return http.StatusBadGateway
+		status, code, msg, kind := maskFailure(err)
+		writeError(w, status, code, msg)
+		li.errKind = kind
+		return status
 	}
-	if lerr := sess.Err(); lerr != nil {
-		li.violations = sess.Violations()
+	if lerr := leakOf(sess, narrow); lerr != nil {
+		li.violations = lerr.Violations
 		w.Header().Set(HeaderRoute, "blocked-leak")
-		writeError(w, http.StatusUnprocessableEntity, "outworld_leak_blocked", lerr.Error())
+		writeLeakBlocked(w, config.APIOpenAI, lerr.Error(), li.violations)
 		return http.StatusUnprocessableEntity
 	}
-	delete(req, "user")
-	if up.cfg.Model != "" {
-		req["model"] = up.cfg.Model
-	}
+	s.finalizeRequest(req, up, config.APIOpenAI)
 	stream, _ := req["stream"].(bool)
 	ureq, err := s.newUpstreamRequest(r.Context(), up, path, encode(req), r)
 	if err != nil {
@@ -393,9 +489,9 @@ func (s *Server) forwardMasked(w http.ResponseWriter, r *http.Request, up *upstr
 		li.unknownNames = len(names)
 		return resp.StatusCode
 	}
-	raw, err := io.ReadAll(io.LimitReader(resp.Body, 64<<20))
+	raw, err := readResponse(resp.Body)
 	if err != nil {
-		writeError(w, http.StatusBadGateway, "outworld_upstream_error", "upstream response truncated")
+		writeError(w, http.StatusBadGateway, "outworld_upstream_error", responseReadError(err))
 		return http.StatusBadGateway
 	}
 	copyHeaders(w.Header(), resp.Header)
@@ -407,6 +503,28 @@ func (s *Server) forwardMasked(w http.ResponseWriter, r *http.Request, up *upstr
 	w.WriteHeader(resp.StatusCode)
 	w.Write(out)
 	return resp.StatusCode
+}
+
+var maxResponseBytes int64 = 64 << 20
+
+var errResponseTooLarge = errors.New("upstream response too large")
+
+func readResponse(r io.Reader) ([]byte, error) {
+	raw, err := io.ReadAll(io.LimitReader(r, maxResponseBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(raw)) > maxResponseBytes {
+		return nil, errResponseTooLarge
+	}
+	return raw, nil
+}
+
+func responseReadError(err error) string {
+	if errors.Is(err, errResponseTooLarge) {
+		return "upstream response exceeds " + strconv.FormatInt(maxResponseBytes, 10) + " bytes"
+	}
+	return "upstream response truncated"
 }
 
 func rehydrateBody(sess *outworld.Session, raw []byte) ([]byte, []string) {
@@ -432,7 +550,7 @@ func rehydrateBody(sess *outworld.Session, raw []byte) ([]byte, []string) {
 			if key == "content" || key == "text" || key == "reasoning_content" || key == "message" {
 				texts = append(texts, out)
 			}
-			if remember && (key == "content" || key == "text" || key == "reasoning_content" || key == "reasoning" || key == "refusal") {
+			if remember && (key == "content" || key == "text" || key == "reasoning_content" || key == "reasoning" || key == "refusal" || key == "input") {
 				sess.Remember(out, t)
 			}
 			return out
@@ -459,117 +577,6 @@ func rehydrateBody(sess *outworld.Session, raw []byte) ([]byte, []string) {
 	return encode(obj), names
 }
 
-func (s *Server) maskRequest(ctx context.Context, sess *outworld.Session, req map[string]any) error {
-	if msgs, ok := req["messages"].([]any); ok {
-		for _, m := range msgs {
-			msg, ok := m.(map[string]any)
-			if !ok {
-				continue
-			}
-			if err := s.maskMessage(ctx, sess, msg); err != nil {
-				return err
-			}
-		}
-	}
-	for _, k := range []string{"prompt", "suffix", "input"} {
-		v, ok := req[k]
-		if !ok {
-			continue
-		}
-		nv, err := maskValue(ctx, sess, v)
-		if err != nil {
-			return err
-		}
-		req[k] = nv
-	}
-	return nil
-}
-
-func (s *Server) maskMessage(ctx context.Context, sess *outworld.Session, msg map[string]any) error {
-	switch c := msg["content"].(type) {
-	case string:
-		out, err := sess.Mask(ctx, c)
-		if err != nil {
-			return err
-		}
-		msg["content"] = out
-	case []any:
-		for _, p := range c {
-			part, ok := p.(map[string]any)
-			if !ok {
-				continue
-			}
-			typ, _ := part["type"].(string)
-			switch typ {
-			case "text", "input_text", "output_text":
-				if t, ok := part["text"].(string); ok {
-					out, err := sess.Mask(ctx, t)
-					if err != nil {
-						return err
-					}
-					part["text"] = out
-				}
-			case "refusal":
-			default:
-				if !s.cfg.Policy.AllowImages {
-					return errNonText
-				}
-			}
-		}
-	}
-	for _, k := range []string{"reasoning_content", "refusal"} {
-		if t, ok := msg[k].(string); ok {
-			out, err := sess.Mask(ctx, t)
-			if err != nil {
-				return err
-			}
-			msg[k] = out
-		}
-	}
-	if name, ok := msg["name"].(string); ok {
-		sess.Check(ctx, name)
-	}
-	if tcs, ok := msg["tool_calls"].([]any); ok {
-		for _, tc := range tcs {
-			if m, ok := tc.(map[string]any); ok {
-				if err := maskFunction(ctx, sess, m["function"]); err != nil {
-					return err
-				}
-			}
-		}
-	}
-	return maskFunction(ctx, sess, msg["function_call"])
-}
-
-func maskFunction(ctx context.Context, sess *outworld.Session, f any) error {
-	fn, ok := f.(map[string]any)
-	if !ok {
-		return nil
-	}
-	args, ok := fn["arguments"].(string)
-	if !ok {
-		return nil
-	}
-	out, err := maskArguments(ctx, sess, args)
-	if err != nil {
-		return err
-	}
-	fn["arguments"] = out
-	return nil
-}
-
-func maskArguments(ctx context.Context, sess *outworld.Session, args string) (string, error) {
-	v, err := decodeAny([]byte(args))
-	if err != nil {
-		return sess.Mask(ctx, args)
-	}
-	nv, err := maskValue(ctx, sess, v)
-	if err != nil {
-		return "", err
-	}
-	return string(encode(nv)), nil
-}
-
 func decodeAny(b []byte) (any, error) {
 	dec := json.NewDecoder(bytes.NewReader(b))
 	dec.UseNumber()
@@ -579,38 +586,6 @@ func decodeAny(b []byte) (any, error) {
 	}
 	if dec.More() {
 		return nil, errors.New("trailing data")
-	}
-	return v, nil
-}
-
-func maskValue(ctx context.Context, sess *outworld.Session, v any) (any, error) {
-	switch t := v.(type) {
-	case string:
-		return sess.Mask(ctx, t)
-	case []any:
-		for i := range t {
-			nv, err := maskValue(ctx, sess, t[i])
-			if err != nil {
-				return nil, err
-			}
-			t[i] = nv
-		}
-		return t, nil
-	case map[string]any:
-		keys := make([]string, 0, len(t))
-		for k := range t {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		for _, k := range keys {
-			sess.Check(ctx, k)
-			nv, err := maskValue(ctx, sess, t[k])
-			if err != nil {
-				return nil, err
-			}
-			t[k] = nv
-		}
-		return t, nil
 	}
 	return v, nil
 }

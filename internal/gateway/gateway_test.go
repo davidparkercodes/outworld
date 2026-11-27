@@ -337,7 +337,7 @@ func TestMaskedStreaming(t *testing.T) {
 }
 
 func TestRouting(t *testing.T) {
-	h := newHarness(t, "")
+	h := newHarness(t, "  allow_route_header: true\n")
 	resp := h.post(t, "/v1/chat/completions", chatBody("John Smith has a diagnosis of flu", false), nil)
 	if resp.Header.Get(HeaderRoute) != "local" || h.local.calls() != 1 || h.cloud.calls() != 0 {
 		t.Fatalf("route %q local=%d cloud=%d", resp.Header.Get(HeaderRoute), h.local.calls(), h.cloud.calls())

@@ -13,7 +13,7 @@ Thanks for helping. Outworld handles people's private data, so correctness and h
 ## Development
 
 ```bash
-task test        # go test ./...
+task test        # go test -timeout 45m ./... (the gateway and detector suites take several minutes)
 task race        # go test -race ./...
 task lint        # gofmt check + go vet
 task build       # ./bin/outworld

@@ -7,20 +7,34 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/davidparkercodes/outworld/internal/config"
 	"github.com/davidparkercodes/outworld/pkg/outworld"
 )
 
 type anthropicChannel struct {
-	rh  *outworld.StreamRehydrator
-	raw strings.Builder
-	out strings.Builder
+	rh   *outworld.StreamRehydrator
+	raw  strings.Builder
+	out  strings.Builder
+	over bool
 }
 
 func (c *anthropicChannel) push(s string) string {
-	c.raw.WriteString(s)
 	o := c.rh.Push(s)
-	c.out.WriteString(o)
+	c.record(s, o)
 	return o
+}
+
+func (c *anthropicChannel) record(raw, out string) {
+	if c.over {
+		return
+	}
+	if c.raw.Len()+len(raw) > streamTextCap || c.out.Len()+len(out) > streamTextCap {
+		c.over = true
+		c.raw.Reset()
+		return
+	}
+	c.raw.WriteString(raw)
+	c.out.WriteString(out)
 }
 
 type anthropicBlock struct {
@@ -75,10 +89,10 @@ func (st *anthropicStream) closeBlock(idx int) {
 	delete(st.blocks, idx)
 	if c := b.text; c != nil {
 		if rest := c.rh.Flush(); rest != "" {
-			c.out.WriteString(rest)
+			c.record("", rest)
 			st.emitDelta(idx, "text_delta", "text", rest)
 		}
-		if c.raw.Len() > 0 {
+		if !c.over && c.raw.Len() > 0 {
 			st.sess.Remember(c.out.String(), c.raw.String())
 		}
 		if st.visible.Len() < streamTextCap {
@@ -88,10 +102,10 @@ func (st *anthropicStream) closeBlock(idx int) {
 	}
 	if c := b.json; c != nil {
 		if rest := c.rh.Flush(); rest != "" {
-			c.out.WriteString(rest)
+			c.record("", rest)
 			st.emitDelta(idx, "input_json_delta", "partial_json", rest)
 		}
-		if c.raw.Len() > 0 {
+		if !c.over && c.raw.Len() > 0 {
 			rememberJSON(st.sess, c.raw.String(), c.out.String())
 		}
 	}
@@ -212,6 +226,8 @@ func (s *Server) streamAnthropic(w http.ResponseWriter, resp *http.Response, ses
 		}
 	}
 	st := &anthropicStream{sess: sess, w: w, blocks: map[int]*anthropicBlock{}}
+	stop, drained := s.closeOnDrain(resp.Body)
+	defer stop()
 	br := bufio.NewReaderSize(resp.Body, 64*1024)
 	var ev []string
 	for {
@@ -227,6 +243,12 @@ func (s *Server) streamAnthropic(w http.ResponseWriter, resp *http.Response, ses
 		if err != nil {
 			break
 		}
+	}
+	if drained() && !st.stopped {
+		st.stopped = true
+		writeShutdownEvent(w, config.APIAnthropic)
+		flush()
+		return nil
 	}
 	if len(ev) > 0 {
 		st.event(ev)

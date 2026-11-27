@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"context"
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
@@ -11,6 +12,8 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/davidparkercodes/outworld/internal/config"
@@ -40,6 +43,10 @@ type Server struct {
 	upstreams map[string]*upstream
 	log       *slog.Logger
 	token     string
+	draining  chan struct{}
+	drainOnce sync.Once
+	inflight  sync.WaitGroup
+	cborScan  func([]byte) ([]string, []string, bool)
 }
 
 type Options struct {
@@ -51,7 +58,7 @@ func New(cfg *config.Config, engine *outworld.Engine, o Options) (*Server, error
 	if o.Logger == nil {
 		o.Logger = slog.New(slog.NewJSONHandler(os.Stderr, nil))
 	}
-	s := &Server{cfg: cfg, engine: engine, upstreams: map[string]*upstream{}, log: o.Logger}
+	s := &Server{cfg: cfg, engine: engine, upstreams: map[string]*upstream{}, log: o.Logger, draining: make(chan struct{})}
 	if cfg.Auth.TokenEnv != "" {
 		s.token = strings.TrimSpace(os.Getenv(cfg.Auth.TokenEnv))
 	}
@@ -92,7 +99,42 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /v1/models", s.auth(writeError, s.models))
 	mux.HandleFunc("POST /v1/messages", s.auth(writeAnthropicError, s.messages))
 	mux.HandleFunc("POST /v1/messages/count_tokens", s.auth(writeAnthropicError, s.countTokens))
-	return mux
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s.inflight.Add(1)
+		defer s.inflight.Done()
+		mux.ServeHTTP(w, r)
+	})
+}
+
+func (s *Server) closeOnDrain(body io.Closer) (stop func(), drained func() bool) {
+	var hit atomic.Bool
+	stop = s.onDrain(func() {
+		hit.Store(true)
+		body.Close()
+	})
+	return stop, hit.Load
+}
+
+const shutdownMessage = "outworld is shutting down; this response was cut off before the upstream finished"
+
+func writeShutdownEvent(w io.Writer, api string) {
+	if api == config.APIAnthropic {
+		io.WriteString(w, "event: error\ndata: "+string(encode(map[string]any{"type": "error", "error": map[string]any{"type": "overloaded_error", "message": shutdownMessage}}))+"\n\n")
+		return
+	}
+	io.WriteString(w, "data: "+string(encode(map[string]any{"error": map[string]any{"message": shutdownMessage, "type": "outworld_shutdown", "code": "outworld_shutdown"}}))+"\n\n")
+}
+
+func (s *Server) onDrain(fn func()) func() {
+	done := make(chan struct{})
+	go func() {
+		select {
+		case <-s.draining:
+			fn()
+		case <-done:
+		}
+	}()
+	return func() { close(done) }
 }
 
 func (s *Server) hello(w http.ResponseWriter, _ *http.Request) {
@@ -173,7 +215,9 @@ func (s *Server) models(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 	copyHeaders(w.Header(), resp.Header)
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		s.log.Warn("models response copy failed", "upstream", name, "error", err.Error())
+	}
 }
 
 func (s *Server) authorize(up *upstream, req, client *http.Request) {
@@ -222,12 +266,55 @@ func writeError(w http.ResponseWriter, status int, code, msg string) {
 	writeJSON(w, status, map[string]any{"error": map[string]any{"message": msg, "type": code, "code": code}})
 }
 
-func (s *Server) ListenAndServe() error {
-	srv := &http.Server{Addr: s.cfg.Listen, Handler: s.Handler(), ReadHeaderTimeout: 30 * time.Second}
-	s.log.Info("outworld listening", "addr", s.cfg.Listen, "default_route", s.cfg.Policy.DefaultRoute, "auth", s.token != "")
-	err := srv.ListenAndServe()
-	if errors.Is(err, http.ErrServerClosed) {
-		return nil
+var (
+	MaxHeaderBytes  = 64 << 10
+	ShutdownTimeout = 30 * time.Second
+	HandlerWait     = 10 * time.Second
+)
+
+func (s *Server) ListenAndServe(ctx context.Context) error {
+	ln, err := net.Listen("tcp", s.cfg.Listen)
+	if err != nil {
+		return fmt.Errorf("listen: %w", err)
 	}
-	return fmt.Errorf("listen: %w", err)
+	return s.Serve(ctx, ln)
+}
+
+func (s *Server) Serve(ctx context.Context, ln net.Listener) error {
+	base, cancelBase := context.WithCancel(context.Background())
+	defer cancelBase()
+	srv := &http.Server{Handler: s.Handler(), ReadHeaderTimeout: 30 * time.Second, IdleTimeout: 120 * time.Second, MaxHeaderBytes: MaxHeaderBytes,
+		BaseContext: func(net.Listener) context.Context { return base }}
+	s.log.Info("outworld listening", "addr", ln.Addr().String(), "default_route", s.cfg.Policy.DefaultRoute, "auth", s.token != "")
+	errc := make(chan error, 1)
+	go func() { errc <- srv.Serve(ln) }()
+	select {
+	case err := <-errc:
+		if errors.Is(err, http.ErrServerClosed) {
+			return nil
+		}
+		return fmt.Errorf("listen: %w", err)
+	case <-ctx.Done():
+	}
+	s.log.Info("outworld shutting down")
+	s.drainOnce.Do(func() { close(s.draining) })
+	sctx, cancel := context.WithTimeout(context.Background(), ShutdownTimeout)
+	defer cancel()
+	if err := srv.Shutdown(sctx); err != nil {
+		cancelBase()
+		srv.Close()
+		s.log.Warn("shutdown deadline passed, open requests cancelled", "error", err.Error())
+	}
+	<-errc
+	done := make(chan struct{})
+	go func() {
+		s.inflight.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(HandlerWait):
+		s.log.Warn("handlers still running after shutdown")
+	}
+	return nil
 }

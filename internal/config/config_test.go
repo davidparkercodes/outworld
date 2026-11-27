@@ -56,8 +56,8 @@ func TestSpecExampleParses(t *testing.T) {
 	if !r.MatchText("new Diagnosis: flu") || r.MatchText("diagnostics") {
 		t.Fatal("match_any should be case-insensitive and whole-word")
 	}
-	if !c.RouteHeaderAllowed() {
-		t.Fatal("route header allowed by default")
+	if !c.RouteHeaderAllowed() || c.RouteHeaderUnrestricted() {
+		t.Fatal("route header defaults to restricted (masked or block only)")
 	}
 }
 

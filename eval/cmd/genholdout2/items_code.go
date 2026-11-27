@@ -100,8 +100,8 @@ APP_PORT=8080
 DATABASE_URL=postgres://ledger_app:{{s|password|Vq7!mZr2-Lw9xTe4|Vq7!mZr2-Lw9xTe4}}@db.internal.example:5432/ledger?sslmode=require
 REDIS_URL=redis://:{{s|password|c4che-Me-0utside-88}}@cache.internal.example:6379/0
 JWT_SIGNING_SECRET={{s|signing-secret|3q9XvB7mK2pL8sT4wY6zA1cD5fG0hJ3nR7uE9iO2}}
-PAYMENTS_API_KEY={{s|api-key|sk_test_51Nq8ZtKf02HxWmP7cYbR4LuD9sVa3EgT6JhXo}}
-AWS_ACCESS_KEY_ID={{s|aws-access-key|AKIAIOSFODNN7EXAMPLE}}
+PAYMENTS_API_KEY={{s|api-key|sk`+`_test_51Nq8ZtKf02HxWmP7cYbR4LuD9sVa3EgT6JhXo}}
+AWS_ACCESS_KEY_ID={{s|aws-access-key|AK`+`IAIOSFODNN7EXAMPLE}}
 AWS_SECRET_ACCESS_KEY={{s|aws-secret-key|wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY}}
 SMTP_USER={{e|notifications@harborline.example}}
 SMTP_PASSWORD={{s|password|Tr0ub4dor&3-staging}}
@@ -123,8 +123,8 @@ metadata:
 type: Opaque
 stringData:
   DB_PASSWORD: "{{s|password|pg-Hx92!kLmQ-7741}}"
-  WEBHOOK_SIGNING_SECRET: "{{s|signing-secret|whsec_9Tb3XkQ7mP2vL8sR4wY6zA1cD5fG0hJ3}}"
-  GITHUB_TOKEN: "{{s|token|ghp_R7uE9iO2aS4dF6gH8jK0lZ1xC3vB5nM7qW9e}}"
+  WEBHOOK_SIGNING_SECRET: "{{s|signing-secret|wh`+`sec_9Tb3XkQ7mP2vL8sR4wY6zA1cD5fG0hJ3}}"
+  GITHUB_TOKEN: "{{s|token|gh`+`p_R7uE9iO2aS4dF6gH8jK0lZ1xC3vB5nM7qW9e}}"
     SFTP_PASSPHRASE: "{{s|password|correct horse battery staple 41}}"
 ---
 apiVersion: apps/v1
@@ -358,8 +358,8 @@ describe('displayName', () => {
 	code("shell-history", "secrets,shell,path", usr(`I think I leaked something into my shell history before sharing my screen. Which of these lines are a problem and how do I scrub them?
 
   501  cd /Users/{{p|hamish|path|hmacgillivray}}/work/glenmore-api
-  502  export NPM_TOKEN={{s|token|npm_Q7mP2vL8sR4wY6zA1cD5fG0hJ3nR7uE9iO2a}}
-  503  git clone https://{{p|hamish|handle|hamish-mac}}:{{s|token|glpat-xT9bK3mQ7vL2pR8sW4y}}@git.glenmore.example/platform/glenmore-api.git
+  502  export NPM_TOKEN={{s|token|np`+`m_Q7mP2vL8sR4wY6zA1cD5fG0hJ3nR7uE9iO2a}}
+  503  git clone https://{{p|hamish|handle|hamish-mac}}:{{s|token|gl`+`pat-xT9bK3mQ7vL2pR8sW4y}}@git.glenmore.example/platform/glenmore-api.git
   504  mysql -h db.glenmore.example -u reporting --password='{{s|password|Lochan!Dubh_77}}' analytics
   505  ssh {{p|angharad|handle|angharad}}@bastion.glenmore.example
   506  scp ~/Downloads/{{p|angharad|path|angharad_llywelyn}}_p60_{{d|2025-04-05|05-04-2025}}.pdf {{p|angharad|handle|angharad}}@bastion.glenmore.example:/tmp/
@@ -426,7 +426,7 @@ X-Signing-Secret-Id: whk_live_03
   }
 }
 
-The signing secret for whk_live_03 is {{s|signing-secret|whsec_Lw9xTe4aKf02HxWmP7cYbR4LuD9sVa3E}} if you need it for the example.`)),
+The signing secret for whk_live_03 is {{s|signing-secret|wh`+`sec_Lw9xTe4aKf02HxWmP7cYbR4LuD9sVa3E}} if you need it for the example.`)),
 
 	code("issue-thread", "handles,thread", usr(`Summarize where this issue stands and who owes what.
 

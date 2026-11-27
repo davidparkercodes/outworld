@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"time"
 
@@ -24,15 +25,28 @@ func ConfigPath(flagValue string) string {
 	return DefaultConfigPath
 }
 
-func BuildEngine(cfg *config.Config) (*outworld.Engine, error) {
+var openVault = vault.OpenFile
+
+func WarnDroppedForms(log *slog.Logger, dropped int) {
+	if dropped > 0 {
+		log.Warn("vault dropped phone form records on load", "count", dropped)
+	}
+}
+
+func BuildEngine(cfg *config.Config) (eng *outworld.Engine, err error) {
 	key, err := vault.LoadKey(cfg.Vault.KeyEnv, cfg.Resolve(cfg.Vault.KeyFile))
 	if err != nil {
 		return nil, err
 	}
-	v, err := vault.OpenFile(cfg.Resolve(cfg.Vault.Path), key)
+	v, err := openVault(cfg.Resolve(cfg.Vault.Path), key)
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if err != nil {
+			v.Close()
+		}
+	}()
 	pol, err := cfg.EnginePolicy()
 	if err != nil {
 		return nil, err

@@ -57,10 +57,10 @@ func TestAddressShapesOutsideUSStyle(t *testing.T) {
 	cases := []struct{ real, want string }{
 		{"14 rue des Lilas, 69003 Lyon", `^\d\d rue des \p{Lu}\p{L}+, \d{5} \p{Lu}\p{L}+$`},
 		{"7 bis avenue de l'Europe", `^\d bis avenue de l'\p{Lu}\p{L}+$`},
-		{"Calle Alcalde Moreno 21, 41004 Sevilla", `^Calle \p{Lu}\p{L}+ \d\d, \d{5} \p{Lu}\p{L}+$`},
+		{"Calle Alcalde Moreno 21, 41004 Sevilla", `^Calle \p{Lu}\p{L}+ \p{Lu}\p{L}+ \d\d, \d{5} \p{Lu}\p{L}+$`},
 		{"Carrer de Balmes 118, 08008 Barcelona", `^Carrer de \p{Lu}\p{L}+ \d{3}, \d{5} \p{Lu}\p{L}+$`},
 		{"Lindenstraße 8, 50674 Köln", `^\p{Lu}\p{L}+straße \d, \d{5} \p{Lu}\p{L}+$`},
-		{"Berliner Straße 44, 60311 Frankfurt am Main", `^\p{Lu}\p{L}+ Straße \d\d, \d{5} \p{Lu}\p{L}+$`},
+		{"Berliner Straße 44, 60311 Frankfurt am Main", `^\p{Lu}\p{L}+ Straße \d\d, \d{5} \p{Lu}\p{L}+ am \p{Lu}\p{L}+$`},
 		{"Am Kupfergraben 6, 10117 Berlin", `^Am \p{Lu}\p{L}+ \d, \d{5} \p{Lu}\p{L}+$`},
 		{"Herengracht 401, 1017 BP Amsterdam", `^\p{Lu}\p{L}+gracht \d{3}, \d{4} [A-Z]{2} \p{Lu}\p{L}+$`},
 		{"Via Garibaldi 30, 10122 Torino", `^Via \p{Lu}\p{L}+ \d\d, \d{5} \p{Lu}\p{L}+$`},

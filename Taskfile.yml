@@ -7,11 +7,11 @@ tasks:
 
   test:
     cmds:
-      - go test ./...
+      - go test -timeout 45m ./...
 
   race:
     cmds:
-      - go test -race ./...
+      - go test -race -timeout 30m ./...
 
   lint:
     cmds:

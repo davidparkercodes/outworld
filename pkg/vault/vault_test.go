@@ -183,3 +183,126 @@ func TestKeys(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestNameAliasSharesOneSurrogateAcrossReopen(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "v.vault")
+	v, err := OpenFile(path, testKey(3))
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, _ := v.Assign("person.residue", "Kowalewicz", func(i int) string { return fmt.Sprintf("Standin%d", i) })
+	alias, err := v.Assign("person.family", "kowalewicz", func(i int) string {
+		if i == 0 {
+			return first
+		}
+		return fmt.Sprintf("Other%d", i)
+	})
+	if err != nil || alias != first {
+		t.Fatalf("alias %q, want %q (%v)", alias, first, err)
+	}
+	if other, _ := v.Assign("person.family", "Unrelated", func(i int) string {
+		if i == 0 {
+			return first
+		}
+		return "Fresh"
+	}); other != "Fresh" {
+		t.Fatalf("a different word must not share the surrogate: %q", other)
+	}
+	if email, _ := v.Assign("email", "kowalewicz", func(i int) string {
+		if i == 0 {
+			return first
+		}
+		return "e@example.com"
+	}); email != "e@example.com" {
+		t.Fatalf("only person records may share a surrogate: %q", email)
+	}
+	if v.Len() != 4 {
+		t.Fatalf("records: %+v", v.Records())
+	}
+	v.Close()
+	v2, err := OpenFile(path, testKey(3))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer v2.Close()
+	for _, kind := range []string{"person.residue", "person.family"} {
+		if got, ok := v2.Get(kind, "Kowalewicz"); !ok || got != first {
+			t.Fatalf("%s after reopen: %q %v", kind, got, ok)
+		}
+	}
+	if r, ok := v2.Reverse(first); !ok || r.Real != "Kowalewicz" {
+		t.Fatalf("reverse: %+v %v", r, ok)
+	}
+	if v2.Len() != 4 || len(v2.FindSurrogates("ask "+first+" now")) != 1 {
+		t.Fatalf("records after reopen: %+v", v2.Records())
+	}
+}
+
+func TestLegacyMarksRecordsFromBeforeTheFormatRecord(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "v.vault")
+	b, err := NewFileBackend(path, testKey(4))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := b.Load(); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.Update(func([]Record) ([]Record, error) {
+		return []Record{{Kind: "person.family", Real: "Chen", Surrogate: "Galbraith"}}, nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for round := 0; round < 2; round++ {
+		v, err := OpenFile(path, testKey(4))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !v.Legacy("person.family", "chen") || v.Legacy("person.given", "Chen") {
+			t.Fatalf("round %d: earlier record not seen as legacy", round)
+		}
+		if _, err := v.Assign("person.family", "Okafor", func(int) string { return "Sutherland" }); err != nil {
+			t.Fatal(err)
+		}
+		if v.Legacy("person.family", "Okafor") || !v.Legacy("person.family", "Chen") {
+			t.Fatalf("round %d: legacy boundary moved", round)
+		}
+		if v.Len() != 2 || len(v.FindReals("# and ## here")) != 0 || len(v.FindSurrogates("# and ## here")) != 0 {
+			t.Fatalf("round %d: the format record must stay invisible: %+v", round, v.Records())
+		}
+		v.Close()
+	}
+	fresh, err := Open(NewMemoryBackend(testKey(5)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	fresh.Assign("person.family", "Chen", func(int) string { return "Galbraith" })
+	if fresh.Legacy("person.family", "Chen") || fresh.Len() != 1 {
+		t.Fatal("a new vault has no legacy records")
+	}
+}
+
+func TestFileBackendWithSecretUsesItOnlyForNewFiles(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "v.db")
+	key, secret := bytes.Repeat([]byte{1}, 32), bytes.Repeat([]byte{2}, 32)
+	b, err := NewFileBackendWithSecret(path, key, secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v, err := Open(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(v.Secret(), secret) {
+		t.Fatal("new file did not take the given secret")
+	}
+	v.Close()
+	b, _ = NewFileBackendWithSecret(path, key, bytes.Repeat([]byte{3}, 32))
+	v, err = Open(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer v.Close()
+	if !bytes.Equal(v.Secret(), secret) {
+		t.Fatal("existing file secret was replaced")
+	}
+}

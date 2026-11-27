@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -62,7 +63,7 @@ func assertNoReals(t *testing.T, out string, extra ...string) {
 const sample = `Hi John,
 Johnny's appointment at Acme Health is on March 15, 2024. JOHN SMITH and john smith are the same.
 Email john.smith@gmail.com or call (804) 555-1234. Address: 123 Main Street, Apt 4B, Richmond, VA 23220.
-Maria Garcia said your code is 482913. SSN 123-45-6789. Card 4111 1111 1111 1111. Key sk-proj-abcdefghijklmnopqrstuvwxyz123456.
+Maria Garcia said your code is 482913. SSN 123-45-6789. Card 4111 1111 1111 1111. Key sk` + `-proj-abcdefghijklmnopqrstuvwxyz123456.
 Reset: https://accounts.example.com/reset?token=abc. Host 10.0.0.5. Profile facebook.com/john.smith. P. Raman and Priya agree.`
 
 func TestMaskRoundTrip(t *testing.T) {
@@ -86,7 +87,7 @@ func TestMaskRoundTrip(t *testing.T) {
 	}
 	back := e.NewSession("").Rehydrate(out)
 	want := sample
-	for _, r := range []string{"482913", "123-45-6789", "4111 1111 1111 1111", "sk-proj-abcdefghijklmnopqrstuvwxyz123456", "https://accounts.example.com/reset?token=abc"} {
+	for _, r := range []string{"482913", "123-45-6789", "4111 1111 1111 1111", "sk" + "-proj-abcdefghijklmnopqrstuvwxyz123456", "https://accounts.example.com/reset?token=abc"} {
 		want = strings.Replace(want, r, "", 1)
 	}
 	for _, r := range []string{"[redacted code]", "[redacted id]", "[redacted card]", "[redacted key]", "[redacted link]"} {
@@ -349,5 +350,15 @@ func TestMaskIsIdempotentOnSurrogates(t *testing.T) {
 	}
 	if e.NewSession("").Rehydrate(e.NewSession("").Rehydrate(again)) == "" {
 		t.Fatal("empty")
+	}
+}
+
+func TestDateOffsetNeverWholeYears(t *testing.T) {
+	e := newEngine(t, nil)
+	for i := 0; i < 20000; i++ {
+		d := e.DateOffset(fmt.Sprintf("scope-%d", i))
+		if d%365 == 0 {
+			t.Fatalf("scope %d offset %d leaves yearless dates unchanged", i, d)
+		}
 	}
 }

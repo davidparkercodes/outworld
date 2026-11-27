@@ -799,7 +799,7 @@
       "messages": [
         {
           "role": "user",
-          "content": "convert this .env into a docker compose service with the secrets moved to docker secrets. keep variable names.\n\n# staging, last rotated 11 Feb 2026 by Kobby\nAPP_ENV=staging\nAPP_PORT=8080\nDATABASE_URL=postgres://ledger_app:Vq7!mZr2-Lw9xTe4@db.internal.example:5432/ledger?sslmode=require\nREDIS_URL=redis://:c4che-Me-0utside-88@cache.internal.example:6379/0\nJWT_SIGNING_SECRET=3q9XvB7mK2pL8sT4wY6zA1cD5fG0hJ3nR7uE9iO2\nPAYMENTS_API_KEY=sk_test_51Nq8ZtKf02HxWmP7cYbR4LuD9sVa3EgT6JhXo\nAWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\nAWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\nSMTP_USER=notifications@harborline.example\nSMTP_PASSWORD=Tr0ub4dor&3-staging\nALERT_EMAIL=kwabena.asante-boateng@harborline.example\nSENTRY_RELEASE=4b825dc642cb6eb9a060e54bf8d69288fbee4904\nLOG_LEVEL=info"
+          "content": "convert this .env into a docker compose service with the secrets moved to docker secrets. keep variable names.\n\n# staging, last rotated 11 Feb 2026 by Kobby\nAPP_ENV=staging\nAPP_PORT=8080\nDATABASE_URL=postgres://ledger_app:Vq7!mZr2-Lw9xTe4@db.internal.example:5432/ledger?sslmode=require\nREDIS_URL=redis://:c4che-Me-0utside-88@cache.internal.example:6379/0\nJWT_SIGNING_SECRET=3q9XvB7mK2pL8sT4wY6zA1cD5fG0hJ3nR7uE9iO2\nPAYMENTS_API_KEY=sk\u005ftest_51Nq8ZtKf02HxWmP7cYbR4LuD9sVa3EgT6JhXo\nAWS_ACCESS_KEY_ID=AK\u0049AIOSFODNN7EXAMPLE\nAWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\nSMTP_USER=notifications@harborline.example\nSMTP_PASSWORD=Tr0ub4dor&3-staging\nALERT_EMAIL=kwabena.asante-boateng@harborline.example\nSENTRY_RELEASE=4b825dc642cb6eb9a060e54bf8d69288fbee4904\nLOG_LEVEL=info"
         }
       ],
       "spans": [
@@ -861,8 +861,8 @@
           "start": 433,
           "end": 479,
           "type": "secret",
-          "value": "sk_test_51Nq8ZtKf02HxWmP7cYbR4LuD9sVa3EgT6JhXo",
-          "canonical": "sk_test_51Nq8ZtKf02HxWmP7cYbR4LuD9sVa3EgT6JhXo",
+          "value": "sk\u005ftest_51Nq8ZtKf02HxWmP7cYbR4LuD9sVa3EgT6JhXo",
+          "canonical": "sk\u005ftest_51Nq8ZtKf02HxWmP7cYbR4LuD9sVa3EgT6JhXo",
           "variant": "api-key"
         },
         {
@@ -870,8 +870,8 @@
           "start": 498,
           "end": 518,
           "type": "secret",
-          "value": "AKIAIOSFODNN7EXAMPLE",
-          "canonical": "AKIAIOSFODNN7EXAMPLE",
+          "value": "AK\u0049AIOSFODNN7EXAMPLE",
+          "canonical": "AK\u0049AIOSFODNN7EXAMPLE",
           "variant": "aws-access-key"
         },
         {
@@ -931,7 +931,7 @@
       "messages": [
         {
           "role": "user",
-          "content": "kubectl apply is rejecting this. What is wrong with the YAML?\n\napiVersion: v1\nkind: Secret\nmetadata:\n  name: billing-worker\n  namespace: payments\n  annotations:\n    owner: \"Aino Kääriäinen <aino.kaariainen@polarfjord.example>\"\n    on-call: \"+358 40 555 0142\"\n    last-rotated: \"2026-01-30\"\ntype: Opaque\nstringData:\n  DB_PASSWORD: \"pg-Hx92!kLmQ-7741\"\n  WEBHOOK_SIGNING_SECRET: \"whsec_9Tb3XkQ7mP2vL8sR4wY6zA1cD5fG0hJ3\"\n  GITHUB_TOKEN: \"ghp_R7uE9iO2aS4dF6gH8jK0lZ1xC3vB5nM7qW9e\"\n    SFTP_PASSPHRASE: \"correct horse battery staple 41\"\n---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: billing-worker\n  labels:\n    app.kubernetes.io/managed-by: Helm\nspec:\n  replicas: 2\n  template:\n    spec:\n      containers:\n        - name: worker\n          image: registry.polarfjord.example/billing-worker@sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08\n          envFrom:\n            - secretRef:\n                name: billing-worker"
+          "content": "kubectl apply is rejecting this. What is wrong with the YAML?\n\napiVersion: v1\nkind: Secret\nmetadata:\n  name: billing-worker\n  namespace: payments\n  annotations:\n    owner: \"Aino Kääriäinen <aino.kaariainen@polarfjord.example>\"\n    on-call: \"+358 40 555 0142\"\n    last-rotated: \"2026-01-30\"\ntype: Opaque\nstringData:\n  DB_PASSWORD: \"pg-Hx92!kLmQ-7741\"\n  WEBHOOK_SIGNING_SECRET: \"whsec\u005f9Tb3XkQ7mP2vL8sR4wY6zA1cD5fG0hJ3\"\n  GITHUB_TOKEN: \"ghp\u005fR7uE9iO2aS4dF6gH8jK0lZ1xC3vB5nM7qW9e\"\n    SFTP_PASSPHRASE: \"correct horse battery staple 41\"\n---\napiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: billing-worker\n  labels:\n    app.kubernetes.io/managed-by: Helm\nspec:\n  replicas: 2\n  template:\n    spec:\n      containers:\n        - name: worker\n          image: registry.polarfjord.example/billing-worker@sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08\n          envFrom:\n            - secretRef:\n                name: billing-worker"
         }
       ],
       "spans": [
@@ -987,8 +987,8 @@
           "start": 380,
           "end": 418,
           "type": "secret",
-          "value": "whsec_9Tb3XkQ7mP2vL8sR4wY6zA1cD5fG0hJ3",
-          "canonical": "whsec_9Tb3XkQ7mP2vL8sR4wY6zA1cD5fG0hJ3",
+          "value": "whsec\u005f9Tb3XkQ7mP2vL8sR4wY6zA1cD5fG0hJ3",
+          "canonical": "whsec\u005f9Tb3XkQ7mP2vL8sR4wY6zA1cD5fG0hJ3",
           "variant": "signing-secret"
         },
         {
@@ -996,8 +996,8 @@
           "start": 437,
           "end": 477,
           "type": "secret",
-          "value": "ghp_R7uE9iO2aS4dF6gH8jK0lZ1xC3vB5nM7qW9e",
-          "canonical": "ghp_R7uE9iO2aS4dF6gH8jK0lZ1xC3vB5nM7qW9e",
+          "value": "ghp\u005fR7uE9iO2aS4dF6gH8jK0lZ1xC3vB5nM7qW9e",
+          "canonical": "ghp\u005fR7uE9iO2aS4dF6gH8jK0lZ1xC3vB5nM7qW9e",
           "variant": "token"
         },
         {
@@ -2703,7 +2703,7 @@
       "messages": [
         {
           "role": "user",
-          "content": "I think I leaked something into my shell history before sharing my screen. Which of these lines are a problem and how do I scrub them?\n\n  501  cd /Users/hmacgillivray/work/glenmore-api\n  502  export NPM_TOKEN=npm_Q7mP2vL8sR4wY6zA1cD5fG0hJ3nR7uE9iO2a\n  503  git clone https://hamish-mac:glpat-xT9bK3mQ7vL2pR8sW4y@git.glenmore.example/platform/glenmore-api.git\n  504  mysql -h db.glenmore.example -u reporting --password='Lochan!Dubh_77' analytics\n  505  ssh angharad@bastion.glenmore.example\n  506  scp ~/Downloads/angharad_llywelyn_p60_05-04-2025.pdf angharad@bastion.glenmore.example:/tmp/\n  507  openssl rand -hex 16\n  508  echo d41d8cd98f00b204e9800998ecf8427e\n  509  curl -H \"X-Api-Key: glm_2f7b9d1c4e6a8f0b3d5c7e9a1b2c4d6e\" https://api.glenmore.example/v1/me\n  510  history | grep -i token"
+          "content": "I think I leaked something into my shell history before sharing my screen. Which of these lines are a problem and how do I scrub them?\n\n  501  cd /Users/hmacgillivray/work/glenmore-api\n  502  export NPM_TOKEN=npm\u005fQ7mP2vL8sR4wY6zA1cD5fG0hJ3nR7uE9iO2a\n  503  git clone https://hamish-mac:glpat\u002dxT9bK3mQ7vL2pR8sW4y@git.glenmore.example/platform/glenmore-api.git\n  504  mysql -h db.glenmore.example -u reporting --password='Lochan!Dubh_77' analytics\n  505  ssh angharad@bastion.glenmore.example\n  506  scp ~/Downloads/angharad_llywelyn_p60_05-04-2025.pdf angharad@bastion.glenmore.example:/tmp/\n  507  openssl rand -hex 16\n  508  echo d41d8cd98f00b204e9800998ecf8427e\n  509  curl -H \"X-Api-Key: glm_2f7b9d1c4e6a8f0b3d5c7e9a1b2c4d6e\" https://api.glenmore.example/v1/me\n  510  history | grep -i token"
         }
       ],
       "spans": [
@@ -2722,8 +2722,8 @@
           "start": 209,
           "end": 249,
           "type": "secret",
-          "value": "npm_Q7mP2vL8sR4wY6zA1cD5fG0hJ3nR7uE9iO2a",
-          "canonical": "npm_Q7mP2vL8sR4wY6zA1cD5fG0hJ3nR7uE9iO2a",
+          "value": "npm\u005fQ7mP2vL8sR4wY6zA1cD5fG0hJ3nR7uE9iO2a",
+          "canonical": "npm\u005fQ7mP2vL8sR4wY6zA1cD5fG0hJ3nR7uE9iO2a",
           "variant": "token"
         },
         {
@@ -2741,8 +2741,8 @@
           "start": 286,
           "end": 311,
           "type": "secret",
-          "value": "glpat-xT9bK3mQ7vL2pR8sW4y",
-          "canonical": "glpat-xT9bK3mQ7vL2pR8sW4y",
+          "value": "glpat\u002dxT9bK3mQ7vL2pR8sW4y",
+          "canonical": "glpat\u002dxT9bK3mQ7vL2pR8sW4y",
           "variant": "token"
         },
         {
@@ -2981,7 +2981,7 @@
       "messages": [
         {
           "role": "user",
-          "content": "Write a TypeScript type for this webhook body and a function that verifies the signature header.\n\nPOST /hooks/payments HTTP/1.1\nHost: api.orchardgate.example\nX-Signature: t=1741251727,v1=5257a869e7ecebeda32affa62cdca3fa51cad7e77a0e56ff536d0ce8e108d8bd\nX-Signing-Secret-Id: whk_live_03\n\n{\n  \"id\": \"evt_3PqLx2\",\n  \"type\": \"charge.succeeded\",\n  \"created\": 1741251727,\n  \"data\": {\n    \"amount\": 12900,\n    \"currency\": \"eur\",\n    \"customer\": {\n      \"name\": \"Montserrat Puigdevall i Ferrer\",\n      \"email\": \"montse@puigdevall.example\",\n      \"phone\": \"+34 600 555 014\",\n      \"tax_id\": \"00000000T\"\n    },\n    \"billing_address\": {\n      \"line1\": \"Carrer de la Riera Alta 14, 3r 2a\",\n      \"postal_code\": \"08001\",\n      \"city\": \"Barcelona\",\n      \"country\": \"ES\"\n    },\n    \"payment_method\": {\n      \"type\": \"card\",\n      \"card\": { \"brand\": \"visa\", \"last4\": \"4242\", \"number_test\": \"4242 4242 4242 4242\", \"exp\": \"12/29\" },\n      \"sepa_fallback\": \"ES91 2100 0418 4502 0005 1332\"\n    }\n  }\n}\n\nThe signing secret for whk_live_03 is whsec_Lw9xTe4aKf02HxWmP7cYbR4LuD9sVa3E if you need it for the example."
+          "content": "Write a TypeScript type for this webhook body and a function that verifies the signature header.\n\nPOST /hooks/payments HTTP/1.1\nHost: api.orchardgate.example\nX-Signature: t=1741251727,v1=5257a869e7ecebeda32affa62cdca3fa51cad7e77a0e56ff536d0ce8e108d8bd\nX-Signing-Secret-Id: whk_live_03\n\n{\n  \"id\": \"evt_3PqLx2\",\n  \"type\": \"charge.succeeded\",\n  \"created\": 1741251727,\n  \"data\": {\n    \"amount\": 12900,\n    \"currency\": \"eur\",\n    \"customer\": {\n      \"name\": \"Montserrat Puigdevall i Ferrer\",\n      \"email\": \"montse@puigdevall.example\",\n      \"phone\": \"+34 600 555 014\",\n      \"tax_id\": \"00000000T\"\n    },\n    \"billing_address\": {\n      \"line1\": \"Carrer de la Riera Alta 14, 3r 2a\",\n      \"postal_code\": \"08001\",\n      \"city\": \"Barcelona\",\n      \"country\": \"ES\"\n    },\n    \"payment_method\": {\n      \"type\": \"card\",\n      \"card\": { \"brand\": \"visa\", \"last4\": \"4242\", \"number_test\": \"4242 4242 4242 4242\", \"exp\": \"12/29\" },\n      \"sepa_fallback\": \"ES91 2100 0418 4502 0005 1332\"\n    }\n  }\n}\n\nThe signing secret for whk_live_03 is whsec\u005fLw9xTe4aKf02HxWmP7cYbR4LuD9sVa3E if you need it for the example."
         }
       ],
       "spans": [
@@ -3077,8 +3077,8 @@
           "start": 1021,
           "end": 1059,
           "type": "secret",
-          "value": "whsec_Lw9xTe4aKf02HxWmP7cYbR4LuD9sVa3E",
-          "canonical": "whsec_Lw9xTe4aKf02HxWmP7cYbR4LuD9sVa3E",
+          "value": "whsec\u005fLw9xTe4aKf02HxWmP7cYbR4LuD9sVa3E",
+          "canonical": "whsec\u005fLw9xTe4aKf02HxWmP7cYbR4LuD9sVa3E",
           "variant": "signing-secret"
         }
       ]

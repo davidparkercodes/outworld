@@ -33,9 +33,18 @@ policy:
   date_shift_scope: global
   date_order: mdy
   dictionary: ./people.csv
-  allow_route_header: true
+  # allow_route_header unset: X-Outworld-Route may only make routing stricter (block > local > masked > passthrough).
+  # true lets clients pick any route (local, passthrough:<name>); false ignores the header.
+  # allow_route_header: true
   allow_scope_header: false
   allow_images: false
+  # Base64 values of 1 KiB or more that decode to gzip, zlib, bzip2, zip or tar data are inflated and
+  # scanned; xz, zstd, 7z and lzma data cannot be read and is refused. A blob that inflates past
+  # max_inflated_bytes, or a request (or CLI input) whose inflated blobs together pass
+  # max_inflated_request_bytes, is not forwarded: 422 at the gateway, stripped by the CLI.
+  # Scanning costs roughly 8 to 15 microseconds per inflated byte, so raise these with care.
+  # max_inflated_bytes: 1048576
+  # max_inflated_request_bytes: 2097152
   entities:
     person: mask
     email: mask
@@ -66,3 +75,7 @@ auth:
 log:
   level: info
   format: json
+
+# Opaque values (thinking signatures, redacted_thinking data, encrypted_content) whose base64 text
+# is longer than this are refused with 422 without being scanned. Default 786432 (768 KiB).
+# max_opaque_bytes: 786432

@@ -22,6 +22,7 @@ type Match struct {
 	Start, End int
 	Text       string
 	Weak       bool
+	Versioned  bool
 	date       time.Time
 	hasYear    bool
 	needCtx    bool
@@ -168,7 +169,32 @@ func Find(text string, order Order) []Match { return find(text, order, false) }
 
 func FindLoose(text string, order Order) []Match { return find(text, order, true) }
 
+func FindVersioned(text string, order Order, loose bool) []Match {
+	var out []Match
+	for _, w := range versionWindows(text) {
+		ms, _ := findCounted(text[w[0]:w[1]], order, loose)
+		for _, m := range ms {
+			if m.Versioned {
+				m.Start, m.End = m.Start+w[0], m.End+w[0]
+				out = append(out, m)
+			}
+		}
+	}
+	return out
+}
+
 func find(text string, order Order, loose bool) []Match {
+	ms, _ := findCounted(text, order, loose)
+	out := ms[:0:0]
+	for _, m := range ms {
+		if !m.Versioned {
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+func findCounted(text string, order Order, loose bool) ([]Match, int) {
 	out := findForeign(text)
 	for _, g := range isoRE.FindAllStringSubmatchIndex(text, -1) {
 		sub := groups(text, g)
@@ -306,7 +332,9 @@ func find(text string, order Order, loose bool) []Match {
 	out = append(out, findAirline(text)...)
 	out = append(out, findCompact(text)...)
 	out = append(out, findSlash(text, order)...)
-	return settleContext(resolve(out), loose)
+	resolved, rs := resolve(out)
+	settled, ss := settleContext(resolved, loose)
+	return markVersioned(text, settled), rs + ss
 }
 
 func build(text string, g []int, wd, mon, day, year string) (Match, bool) {
@@ -336,7 +364,9 @@ func groups(text string, g []int) []string {
 	return out
 }
 
-func resolve(ms []Match) []Match {
+const bitmapResolveMin = 64
+
+func resolve(ms []Match) ([]Match, int) {
 	sort.SliceStable(ms, func(i, j int) bool {
 		li, lj := ms[i].End-ms[i].Start, ms[j].End-ms[j].Start
 		if li != lj {
@@ -345,20 +375,49 @@ func resolve(ms []Match) []Match {
 		return ms[i].Start < ms[j].Start
 	})
 	var out []Match
+	var taken []bool
+	if len(ms) > bitmapResolveMin {
+		maxEnd := 0
+		for _, m := range ms {
+			if m.Start < 0 || m.End < m.Start {
+				maxEnd = -1
+				break
+			}
+			maxEnd = max(maxEnd, m.End)
+		}
+		if maxEnd >= 0 {
+			taken = make([]bool, maxEnd)
+		}
+	}
+	steps := 0
 	for _, m := range ms {
 		clash := false
-		for _, o := range out {
-			if m.Start < o.End && o.Start < m.End {
-				clash = true
-				break
+		if taken != nil {
+			for i := m.Start; i < m.End; i++ {
+				steps++
+				if taken[i] {
+					clash = true
+					break
+				}
+			}
+		} else {
+			for _, o := range out {
+				steps++
+				if m.Start < o.End && o.Start < m.End {
+					clash = true
+					break
+				}
 			}
 		}
 		if !clash {
 			out = append(out, m)
+			for i := m.Start; taken != nil && i < m.End; i++ {
+				taken[i] = true
+			}
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Start < out[j].Start })
-	return out
+	return out, steps
 }
 
 func Shift(text string, order Order, days int) string {

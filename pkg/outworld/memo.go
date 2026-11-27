@@ -13,12 +13,14 @@ const DefaultMemoBytes = 64 << 20
 type memoKey [sha256.Size]byte
 
 type memoEntry struct {
-	key   memoKey
-	out   string
-	stats Stats
-	dates map[string]string
-	names []string
-	size  int64
+	key       memoKey
+	out       string
+	stats     Stats
+	dates     map[string]string
+	names     []string
+	dateGen   uint64
+	saturated bool
+	size      int64
 }
 
 type Memo struct {
@@ -62,6 +64,16 @@ func (m *Memo) get(k memoKey) (memoEntry, bool) {
 	m.hits++
 	m.ll.MoveToFront(el)
 	return *el.Value.(*memoEntry), true
+}
+
+func (m *Memo) reject() {
+	if m == nil {
+		return
+	}
+	m.mu.Lock()
+	m.hits--
+	m.miss++
+	m.mu.Unlock()
 }
 
 func (m *Memo) put(e memoEntry) {
@@ -124,6 +136,10 @@ func (s *Session) memoLookup(text string) (string, bool) {
 	if !ok {
 		return "", false
 	}
+	if s.leavesKnownReal(ent.out) || (ent.dateGen != s.e.realDates.generation(s.scope) && len(s.knownDatesIn(ent.out, nil, ent.saturated)) > 0) {
+		s.e.memo.reject()
+		return "", false
+	}
 	s.learnNames(ent.names)
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -146,6 +162,8 @@ func (s *Session) memoLookup(text string) (string, bool) {
 }
 
 type memoMark struct {
+	dateGen    uint64
+	saturated  bool
 	stats      Stats
 	dates      map[string]bool
 	violations int
@@ -155,9 +173,10 @@ func (s *Session) memoMark() memoMark {
 	if s.e.memo == nil {
 		return memoMark{}
 	}
+	gen, saturated := s.e.realDates.state(s.scope)
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	mk := memoMark{stats: s.stats, dates: make(map[string]bool, len(s.dates)), violations: len(s.violations)}
+	mk := memoMark{dateGen: gen, saturated: saturated, stats: s.stats, dates: make(map[string]bool, len(s.dates)), violations: len(s.violations)}
 	mk.stats.ByType = make(map[entity.Type]int, len(s.stats.ByType))
 	for t, n := range s.stats.ByType {
 		mk.stats.ByType[t] = n
@@ -177,7 +196,7 @@ func (s *Session) memoStore(text, out string, names []string, mk memoMark) {
 		s.mu.Unlock()
 		return
 	}
-	ent := memoEntry{key: memoKeyFor(s.scope, text), out: out, names: names}
+	ent := memoEntry{key: memoKeyFor(s.scope, text), out: out, names: names, dateGen: mk.dateGen, saturated: mk.saturated}
 	ent.stats = Stats{
 		Masked:      s.stats.Masked - mk.stats.Masked,
 		Stripped:    s.stats.Stripped - mk.stats.Stripped,
@@ -206,5 +225,6 @@ func (s *Session) Remember(rehydrated, upstream string) {
 	if s.e.memo == nil || rehydrated == "" {
 		return
 	}
-	s.e.memo.put(memoEntry{key: memoKeyFor(s.scope, rehydrated), out: upstream, stats: Stats{ByType: map[entity.Type]int{}}})
+	gen, saturated := s.e.realDates.state(s.scope)
+	s.e.memo.put(memoEntry{key: memoKeyFor(s.scope, rehydrated), out: upstream, stats: Stats{ByType: map[entity.Type]int{}}, dateGen: gen, saturated: saturated})
 }

@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/davidparkercodes/outworld/internal/config"
 	"github.com/davidparkercodes/outworld/pkg/outworld"
 )
 
@@ -20,6 +21,7 @@ type streamKey struct {
 type streamState struct {
 	sess     *outworld.Session
 	raw      map[streamKey]*strings.Builder
+	over     map[streamKey]bool
 	rh       map[streamKey]*outworld.StreamRehydrator
 	order    []streamKey
 	template map[string]any
@@ -38,14 +40,21 @@ func (st *streamState) get(k streamKey) *outworld.StreamRehydrator {
 
 func (st *streamState) push(k streamKey, s string) string {
 	r := st.get(k)
-	st.raw[k].WriteString(s)
+	if !st.over[k] {
+		if b := st.raw[k]; b.Len()+len(s) > streamTextCap {
+			st.over[k] = true
+			b.Reset()
+		} else {
+			b.WriteString(s)
+		}
+	}
 	return r.Push(s)
 }
 
 func (st *streamState) remember() {
 	for _, k := range st.order {
 		raw, out := st.raw[k].String(), st.rh[k].Text()
-		if raw == "" || len(out) >= streamTextCap {
+		if st.over[k] || raw == "" || len(out) >= streamTextCap {
 			continue
 		}
 		if k.field == "arguments" {
@@ -56,7 +65,7 @@ func (st *streamState) remember() {
 	}
 }
 
-const streamTextCap = 1 << 20
+var streamTextCap = 1 << 20
 
 func toInt(v any) int {
 	switch t := v.(type) {
@@ -205,7 +214,7 @@ func (s *Server) streamRehydrate(w http.ResponseWriter, resp *http.Response, ses
 			fl.Flush()
 		}
 	}
-	st := &streamState{sess: sess, rh: map[streamKey]*outworld.StreamRehydrator{}, raw: map[streamKey]*strings.Builder{}}
+	st := &streamState{sess: sess, rh: map[streamKey]*outworld.StreamRehydrator{}, raw: map[streamKey]*strings.Builder{}, over: map[streamKey]bool{}}
 	finish := func() []string {
 		if pc := st.pendingChunk(); pc != nil {
 			io.WriteString(w, "data: "+string(encode(pc))+"\n\n")
@@ -217,34 +226,44 @@ func (s *Server) streamRehydrate(w http.ResponseWriter, resp *http.Response, ses
 		}
 		return names
 	}
-	br := bufio.NewReaderSize(resp.Body, 64*1024)
 	var names []string
 	done := false
+	event := func(lines []string) {
+		var data []string
+		for _, l := range lines {
+			if d, ok := sseData(l); ok {
+				data = append(data, d)
+			}
+		}
+		payload := strings.Join(data, "\n")
+		if len(data) > 0 && strings.TrimSpace(payload) == "[DONE]" {
+			names = finish()
+			done = true
+			writeLines(w, lines)
+			return
+		}
+		chunk, derr := decodeObject([]byte(payload))
+		if len(data) == 0 || derr != nil {
+			writeLines(w, lines)
+			return
+		}
+		if st.template == nil {
+			st.template = chunk
+		}
+		st.process(chunk)
+		replaceData(w, lines, encode(chunk))
+	}
+	stop, drained := s.closeOnDrain(resp.Body)
+	defer stop()
+	br := bufio.NewReaderSize(resp.Body, 64*1024)
+	var ev []string
 	for {
 		line, err := br.ReadString('\n')
 		if line != "" {
-			trimmed := strings.TrimRight(line, "\r\n")
-			if strings.HasPrefix(trimmed, "data:") {
-				payload := strings.TrimSpace(trimmed[len("data:"):])
-				if payload == "[DONE]" {
-					names = finish()
-					done = true
-					io.WriteString(w, line)
-					flush()
-					continue
-				}
-				if chunk, derr := decodeObject([]byte(payload)); derr == nil {
-					if st.template == nil {
-						st.template = chunk
-					}
-					st.process(chunk)
-					io.WriteString(w, "data: "+string(encode(chunk))+"\n")
-					flush()
-					continue
-				}
-			}
-			io.WriteString(w, line)
-			if trimmed == "" {
+			ev = append(ev, line)
+			if strings.HasSuffix(line, "\n") && strings.TrimRight(line, "\r\n") == "" {
+				event(ev)
+				ev = nil
 				flush()
 			}
 		}
@@ -252,12 +271,45 @@ func (s *Server) streamRehydrate(w http.ResponseWriter, resp *http.Response, ses
 			break
 		}
 	}
+	if drained() && !done {
+		writeShutdownEvent(w, config.APIOpenAI)
+		flush()
+		return nil
+	}
+	if len(ev) > 0 {
+		event(ev)
+		if !strings.HasSuffix(ev[len(ev)-1], "\n") {
+			io.WriteString(w, "\n")
+		}
+		io.WriteString(w, "\n")
+	}
 	if !done {
 		names = finish()
-		flush()
 	}
+	flush()
 	if len(names) > 0 {
 		w.Header().Set(HeaderUnknownNames, strings.Join(names, ", "))
 	}
 	return names
+}
+
+func writeLines(w io.Writer, lines []string) {
+	for _, l := range lines {
+		io.WriteString(w, l)
+	}
+}
+
+func replaceData(w io.Writer, lines []string, payload []byte) {
+	written := false
+	for _, l := range lines {
+		if _, ok := sseData(l); !ok {
+			io.WriteString(w, l)
+			continue
+		}
+		if written {
+			continue
+		}
+		written = true
+		io.WriteString(w, "data: "+string(payload)+l[len(strings.TrimRight(l, "\r\n")):])
+	}
 }

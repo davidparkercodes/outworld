@@ -1,9 +1,7 @@
 package gateway
 
 import (
-	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"strconv"
@@ -51,6 +49,11 @@ func (s *Server) handleAnthropic(w http.ResponseWriter, r *http.Request, path st
 	start := time.Now()
 	li := &logInfo{}
 	defer func() { s.logRequest(path, start, li) }()
+	if s.scopeTooLong(r) {
+		li.status, li.errKind = http.StatusBadRequest, "scope"
+		writeAnthropicError(w, li.status, "outworld_bad_request", HeaderScope+" is longer than 256 bytes")
+		return
+	}
 
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, s.cfg.MaxBodyBytes))
 	if err != nil {
@@ -66,9 +69,9 @@ func (s *Server) handleAnthropic(w http.ResponseWriter, r *http.Request, path st
 	}
 	li.stream, _ = req["stream"].(bool)
 
-	d, err := s.decide(r.Context(), r, anthropicText(req), config.APIAnthropic)
+	d, err := s.decide(r.Context(), r, s.routingText(req, config.APIAnthropic), config.APIAnthropic)
 	if err != nil {
-		li.status, li.errKind = http.StatusBadGateway, "route"
+		li.status, li.errKind = routeStatus(err), "route"
 		w.Header().Set(HeaderRoute, config.RouteBlock)
 		writeAnthropicError(w, li.status, "outworld_route_error", err.Error())
 		return
@@ -81,6 +84,11 @@ func (s *Server) handleAnthropic(w http.ResponseWriter, r *http.Request, path st
 	if r.URL.RawQuery != "" {
 		target += "?" + r.URL.RawQuery
 	}
+	if isDryRun(r) {
+		li.dryRun = true
+		li.status = s.writeDryRun(w, r, config.APIAnthropic, d, req, li)
+		return
+	}
 	switch d.route {
 	case config.RouteBlock:
 		li.status = http.StatusForbidden
@@ -92,235 +100,23 @@ func (s *Server) handleAnthropic(w http.ResponseWriter, r *http.Request, path st
 	}
 }
 
-func anthropicText(req map[string]any) string {
-	var parts []string
-	add := func(v any) {
-		if s, ok := v.(string); ok && s != "" {
-			parts = append(parts, s)
-		}
-	}
-	var leaves func(v any)
-	leaves = func(v any) {
-		switch t := v.(type) {
-		case string:
-			add(t)
-		case []any:
-			for _, x := range t {
-				leaves(x)
-			}
-		case map[string]any:
-			for _, x := range t {
-				leaves(x)
-			}
-		}
-	}
-	var content func(v any)
-	content = func(v any) {
-		blocks, ok := v.([]any)
-		if !ok {
-			add(v)
-			return
-		}
-		for _, b := range blocks {
-			m, ok := b.(map[string]any)
-			if !ok {
-				continue
-			}
-			typ, _ := m["type"].(string)
-			switch typ {
-			case "thinking", "redacted_thinking", "image":
-			case "tool_use", "server_tool_use", "mcp_tool_use":
-				leaves(m["input"])
-			default:
-				add(m["text"])
-				add(m["title"])
-				add(m["context"])
-				content(m["content"])
-				switch src := m["source"].(type) {
-				case string:
-					add(src)
-				case map[string]any:
-					if st, _ := src["type"].(string); st == "text" {
-						add(src["data"])
-					}
-					if c, ok := src["content"]; ok {
-						content(c)
-					}
-				}
-			}
-		}
-	}
-	content(req["system"])
-	if msgs, ok := req["messages"].([]any); ok {
-		for _, m := range msgs {
-			if msg, ok := m.(map[string]any); ok {
-				content(msg["content"])
-			}
-		}
-	}
-	return strings.Join(parts, "\n")
-}
-
-func maskStringField(ctx context.Context, sess *outworld.Session, m map[string]any, key string) error {
-	t, ok := m[key].(string)
-	if !ok {
-		return nil
-	}
-	out, err := sess.Mask(ctx, t)
-	if err != nil {
-		return err
-	}
-	m[key] = out
-	return nil
-}
-
-func (s *Server) nonText() error {
-	if s.cfg.Policy.AllowImages {
-		return nil
-	}
-	return errNonText
-}
-
-func (s *Server) maskAnthropicRequest(ctx context.Context, sess *outworld.Session, req map[string]any) error {
-	switch sys := req["system"].(type) {
-	case string:
-		if err := maskStringField(ctx, sess, req, "system"); err != nil {
-			return err
-		}
-	case []any:
-		for _, b := range sys {
-			blk, ok := b.(map[string]any)
-			if !ok {
-				continue
-			}
-			if typ, _ := blk["type"].(string); typ != "text" {
-				continue
-			}
-			if t, _ := blk["text"].(string); strings.HasPrefix(t, anthropicBillingPrefix) {
-				continue
-			}
-			if err := maskStringField(ctx, sess, blk, "text"); err != nil {
-				return err
-			}
-		}
-	}
-	msgs, _ := req["messages"].([]any)
-	for _, m := range msgs {
-		msg, ok := m.(map[string]any)
-		if !ok {
-			continue
-		}
-		if err := s.maskAnthropicContent(ctx, sess, msg, "content"); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (s *Server) maskAnthropicContent(ctx context.Context, sess *outworld.Session, holder map[string]any, key string) error {
-	switch c := holder[key].(type) {
-	case string:
-		return maskStringField(ctx, sess, holder, key)
-	case []any:
-		for _, b := range c {
-			blk, ok := b.(map[string]any)
-			if !ok {
-				continue
-			}
-			if err := s.maskAnthropicBlock(ctx, sess, blk); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func (s *Server) maskAnthropicBlock(ctx context.Context, sess *outworld.Session, blk map[string]any) error {
-	typ, _ := blk["type"].(string)
-	switch typ {
-	case "thinking", "redacted_thinking":
-		return nil
-	case "text":
-		return maskStringField(ctx, sess, blk, "text")
-	case "tool_use", "server_tool_use", "mcp_tool_use":
-		in, ok := blk["input"]
-		if !ok {
-			return nil
-		}
-		nv, err := maskValue(ctx, sess, in)
-		if err != nil {
-			return err
-		}
-		blk["input"] = nv
-		return nil
-	case "tool_result", "mcp_tool_result":
-		return s.maskAnthropicContent(ctx, sess, blk, "content")
-	case "search_result":
-		for _, k := range []string{"title", "source"} {
-			if err := maskStringField(ctx, sess, blk, k); err != nil {
-				return err
-			}
-		}
-		return s.maskAnthropicContent(ctx, sess, blk, "content")
-	case "document":
-		for _, k := range []string{"title", "context"} {
-			if err := maskStringField(ctx, sess, blk, k); err != nil {
-				return err
-			}
-		}
-		src, ok := blk["source"].(map[string]any)
-		if !ok {
-			return s.nonText()
-		}
-		switch st, _ := src["type"].(string); st {
-		case "text":
-			return maskStringField(ctx, sess, src, "data")
-		case "content":
-			return s.maskAnthropicContent(ctx, sess, src, "content")
-		}
-		return s.nonText()
-	case "image":
-		return s.nonText()
-	}
-	if _, has := blk["source"]; has {
-		return s.nonText()
-	}
-	return nil
-}
-
 func (s *Server) forwardMaskedAnthropic(w http.ResponseWriter, r *http.Request, up *upstream, target string, req map[string]any, li *logInfo, countOnly bool) int {
 	sess := s.engine.NewSession(s.scope(r))
-	sess.SetPriming(true)
-	err := s.maskAnthropicRequest(r.Context(), sess, req)
-	sess.SetPriming(false)
-	if err == nil {
-		err = s.maskAnthropicRequest(r.Context(), sess, req)
-	}
+	narrow, err := s.maskTwice(r.Context(), sess, req, config.APIAnthropic)
 	li.stats = sess.Stats()
 	if err != nil {
-		if errors.Is(err, errNonText) {
-			writeAnthropicError(w, http.StatusUnprocessableEntity, "outworld_unsupported_content", err.Error())
-			li.errKind = "non_text"
-			return http.StatusUnprocessableEntity
-		}
-		writeAnthropicError(w, http.StatusBadGateway, "outworld_detection_error", "detection failed; request not sent (fail closed)")
-		li.errKind = "detect"
-		return http.StatusBadGateway
+		status, code, msg, kind := maskFailure(err)
+		writeAnthropicError(w, status, code, msg)
+		li.errKind = kind
+		return status
 	}
-	if lerr := sess.Err(); lerr != nil {
-		li.violations = sess.Violations()
+	if lerr := leakOf(sess, narrow); lerr != nil {
+		li.violations = lerr.Violations
 		w.Header().Set(HeaderRoute, "blocked-leak")
-		writeAnthropicError(w, http.StatusUnprocessableEntity, "outworld_leak_blocked", lerr.Error())
+		writeLeakBlocked(w, config.APIAnthropic, lerr.Error(), li.violations)
 		return http.StatusUnprocessableEntity
 	}
-	if !s.cfg.Policy.KeepMetadata {
-		if md, ok := req["metadata"].(map[string]any); ok {
-			delete(md, "user_id")
-		}
-	}
-	if up.cfg.Model != "" {
-		req["model"] = up.cfg.Model
-	}
+	s.finalizeRequest(req, up, config.APIAnthropic)
 	stream, _ := req["stream"].(bool)
 	ureq, err := s.newUpstreamRequest(r.Context(), up, target, encode(req), r)
 	if err != nil {
@@ -340,9 +136,9 @@ func (s *Server) forwardMaskedAnthropic(w http.ResponseWriter, r *http.Request, 
 		li.unknownNames = len(names)
 		return resp.StatusCode
 	}
-	raw, err := io.ReadAll(io.LimitReader(resp.Body, 64<<20))
+	raw, err := readResponse(resp.Body)
 	if err != nil {
-		writeAnthropicError(w, http.StatusBadGateway, "outworld_upstream_error", "upstream response truncated")
+		writeAnthropicError(w, http.StatusBadGateway, "outworld_upstream_error", responseReadError(err))
 		return http.StatusBadGateway
 	}
 	copyHeaders(w.Header(), resp.Header)

@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 	"unicode"
@@ -24,8 +26,25 @@ func (d DateDetector) Name() string { return "date" }
 
 func (d DateDetector) Detect(_ context.Context, text string) ([]entity.Span, error) {
 	var out []entity.Span
+	seen := map[[2]int]bool{}
 	for _, m := range dateshift.Find(text, d.Order) {
 		out = append(out, entity.Span{Start: m.Start, End: m.End, Type: entity.Date, Label: "date", Text: m.Text, Source: "date", Priority: 50, Score: 1})
+		seen[[2]int{m.Start, m.End}] = true
+	}
+	if !needsFold(text) {
+		return out, nil
+	}
+	folded, starts, ends := foldText(text)
+	for _, m := range dateshift.Find(folded, d.Order) {
+		if !foldSpanOK(folded, m.Start, m.End) {
+			continue
+		}
+		s, e := starts[m.Start], ends[m.End-1]
+		if seen[[2]int{s, e}] {
+			continue
+		}
+		seen[[2]int{s, e}] = true
+		out = append(out, entity.Span{Start: s, End: e, Type: entity.Date, Label: "date", Text: text[s:e], Source: "date", Priority: 50, Score: 1})
 	}
 	return out, nil
 }
@@ -46,9 +65,13 @@ func DefaultNERLabels() map[string]entity.Type {
 	}
 }
 
+const defaultNERTimeout = 10 * time.Second
+
+var defaultNERClient = &http.Client{Timeout: defaultNERTimeout}
+
 func NewNERDetector(url string, timeout time.Duration) *NERDetector {
 	if timeout <= 0 {
-		timeout = 10 * time.Second
+		timeout = defaultNERTimeout
 	}
 	return &NERDetector{URL: url, Labels: DefaultNERLabels(), Threshold: 0.5, Client: &http.Client{Timeout: timeout}}
 }
@@ -74,17 +97,29 @@ func (d *NERDetector) Detect(ctx context.Context, text string) ([]entity.Span, e
 	if strings.TrimSpace(text) == "" {
 		return nil, nil
 	}
-	labels := make([]string, 0, len(d.Labels))
-	for l := range d.Labels {
+	labelMap := d.Labels
+	if labelMap == nil {
+		labelMap = DefaultNERLabels()
+	}
+	labels := make([]string, 0, len(labelMap))
+	for l := range labelMap {
 		labels = append(labels, l)
 	}
-	body, _ := json.Marshal(nerRequest{Text: TitleCaseShouting(text), Labels: labels, Threshold: d.Threshold})
+	sort.Strings(labels)
+	body, err := json.Marshal(nerRequest{Text: TitleCaseShouting(text), Labels: labels, Threshold: d.Threshold})
+	if err != nil {
+		return nil, fmt.Errorf("ner sidecar: encode: %w", err)
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(d.URL, "/")+"/detect", bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := d.Client.Do(req)
+	client := d.Client
+	if client == nil {
+		client = defaultNERClient
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("ner sidecar: %w", err)
 	}
@@ -95,12 +130,12 @@ func (d *NERDetector) Detect(ctx context.Context, text string) ([]entity.Span, e
 	}
 	var nr nerResponse
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 8<<20)).Decode(&nr); err != nil {
-		return nil, fmt.Errorf("ner sidecar: decode: %w", err)
+		return nil, errors.New("ner sidecar: bad response")
 	}
 	offsets := runeToByte(text)
 	var out []entity.Span
 	for _, e := range nr.Entities {
-		t, ok := d.Labels[strings.ToLower(e.Label)]
+		t, ok := labelMap[strings.ToLower(e.Label)]
 		if !ok || e.Score < d.Threshold || e.Start < 0 || e.End <= e.Start || e.End >= len(offsets) {
 			continue
 		}

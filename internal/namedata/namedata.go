@@ -21,6 +21,9 @@ var companiesRaw string
 //go:embed handlewords.txt
 var handleWordsRaw string
 
+//go:embed phrases.txt
+var phrasesRaw string
+
 type Given struct {
 	Gender string
 	Weak   bool
@@ -34,6 +37,10 @@ var (
 	orgOnce     sync.Once
 	companies   map[string][][]string
 	handleWords map[string]bool
+
+	phraseOnce  sync.Once
+	phrases     map[string]bool
+	phraseFirst map[string]int
 )
 
 func load() {
@@ -116,4 +123,39 @@ func CompaniesStarting(key string) [][]string {
 func IsHandleWord(word string) bool {
 	orgOnce.Do(loadOrgs)
 	return handleWords[textutil.Fold(word)]
+}
+
+func loadPhrases() {
+	phrases = make(map[string]bool, 256)
+	phraseFirst = make(map[string]int, 256)
+	for _, line := range strings.Split(phrasesRaw, "\n") {
+		words := strings.Fields(line)
+		personal := len(words) > 0 && words[len(words)-1] == "*"
+		if personal {
+			words = words[:len(words)-1]
+		}
+		if len(words) < 2 {
+			continue
+		}
+		phrases[strings.Join(words, " ")] = personal
+		if len(words) > phraseFirst[words[0]] {
+			phraseFirst[words[0]] = len(words)
+		}
+	}
+}
+
+func PhraseWords(first string) int {
+	phraseOnce.Do(loadPhrases)
+	return phraseFirst[first]
+}
+
+func IsPhrase(folded string) bool {
+	phraseOnce.Do(loadPhrases)
+	_, ok := phrases[folded]
+	return ok
+}
+
+func PersonalPhrase(folded string) bool {
+	phraseOnce.Do(loadPhrases)
+	return phrases[folded]
 }

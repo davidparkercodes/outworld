@@ -293,7 +293,16 @@ func (g *Generator) Address(real string, attempt int) string {
 		return m[1] + r.digits(len(m[2]), true)
 	}
 	if strings.ContainsAny(real, "0123456789") {
-		if loc := addrLocaleOf(real); loc != nil {
+		loc := addrLocaleOf(real)
+		if norm := addrNormalSpacing(real); loc == nil && norm != real {
+			if nloc := addrLocaleOf(norm); nloc != nil {
+				if out := g.localAddress(r, norm, nloc); out != norm {
+					return out
+				}
+				r = g.stream("address", real, attempt)
+			}
+		}
+		if loc != nil {
 			if out := g.localAddress(r, real, loc); out != real {
 				return out
 			}
@@ -370,12 +379,22 @@ func (g *Generator) URL(real string, attempt int) string {
 	return fmt.Sprintf("%swww.%s/r/%s", scheme, r.pick(exampleDomains), strconv.FormatUint(r.next()%(1<<40), 36))
 }
 
+var ipEmbeddedPrefixes = []string{"::ffff:", "::", "64:ff9b::", "0:0:0:0:0:ffff:"}
+
 func (g *Generator) IP(real string, attempt int) string {
 	r := g.stream("ip", real, attempt)
+	nets := []string{"192.0.2", "198.51.100", "203.0.113"}
 	if strings.Contains(real, ":") {
+		if k := strings.LastIndexByte(real, ':'); strings.Count(real[k+1:], ".") == 3 {
+			prefix := real[:k+1]
+			for _, p := range ipEmbeddedPrefixes {
+				if strings.EqualFold(prefix, p) {
+					return fmt.Sprintf("%s%s.%d", prefix, r.pick(nets), 1+r.intn(254))
+				}
+			}
+		}
 		return fmt.Sprintf("2001:db8::%x:%x", r.intn(0xffff), r.intn(0xffff))
 	}
-	nets := []string{"192.0.2", "198.51.100", "203.0.113"}
 	return fmt.Sprintf("%s.%d", r.pick(nets), 1+r.intn(254))
 }
 

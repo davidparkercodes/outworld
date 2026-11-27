@@ -89,3 +89,22 @@ func TestBundledListsHaveNoDuplicatesOrCommonWords(t *testing.T) {
 		}
 	}
 }
+
+func TestIPKeepsIPv4EmbeddedPrefix(t *testing.T) {
+	g := NewGenerator([]byte("ip-embedded"))
+	cases := map[string]string{
+		"::ffff:192.168.1.20":         `^::ffff:(192\.0\.2|198\.51\.100|203\.0\.113)\.\d+$`,
+		"::FFFF:10.1.2.3":             `^::FFFF:(192\.0\.2|198\.51\.100|203\.0\.113)\.\d+$`,
+		"::192.168.1.20":              `^::(192\.0\.2|198\.51\.100|203\.0\.113)\.\d+$`,
+		"64:ff9b::34.117.59.81":       `^64:ff9b::(192\.0\.2|198\.51\.100|203\.0\.113)\.\d+$`,
+		"2001:db8:abcd::10.0.0.1":     `^2001:db8::[0-9a-f]+:[0-9a-f]+$`,
+		"0:0:0:0:0:ffff:192.168.1.20": `^0:0:0:0:0:ffff:(192\.0\.2|198\.51\.100|203\.0\.113)\.\d+$`,
+	}
+	for real, want := range cases {
+		for attempt := 0; attempt < 5; attempt++ {
+			if got := g.IP(real, attempt); !regexp.MustCompile(want).MatchString(got) {
+				t.Errorf("%q: %q does not match %s", real, got, want)
+			}
+		}
+	}
+}

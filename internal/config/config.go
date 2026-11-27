@@ -12,6 +12,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/davidparkercodes/outworld/pkg/dateshift"
+	"github.com/davidparkercodes/outworld/pkg/detect"
 	"github.com/davidparkercodes/outworld/pkg/entity"
 	"github.com/davidparkercodes/outworld/pkg/outworld"
 )
@@ -23,16 +24,19 @@ const (
 	RouteBlock       = "block"
 )
 
+const DefaultMaxOpaqueBytes = 768 << 10
+
 type Config struct {
-	Listen       string              `yaml:"listen"`
-	Vault        VaultConfig         `yaml:"vault"`
-	Upstreams    map[string]Upstream `yaml:"upstreams"`
-	Policy       PolicyConfig        `yaml:"policy"`
-	NER          NERConfig           `yaml:"ner"`
-	Auth         AuthConfig          `yaml:"auth"`
-	Log          LogConfig           `yaml:"log"`
-	Memo         MemoConfig          `yaml:"memo"`
-	MaxBodyBytes int64               `yaml:"max_body_bytes"`
+	Listen         string              `yaml:"listen"`
+	Vault          VaultConfig         `yaml:"vault"`
+	Upstreams      map[string]Upstream `yaml:"upstreams"`
+	Policy         PolicyConfig        `yaml:"policy"`
+	NER            NERConfig           `yaml:"ner"`
+	Auth           AuthConfig          `yaml:"auth"`
+	Log            LogConfig           `yaml:"log"`
+	Memo           MemoConfig          `yaml:"memo"`
+	MaxBodyBytes   int64               `yaml:"max_body_bytes"`
+	MaxOpaqueBytes int                 `yaml:"max_opaque_bytes"`
 
 	dir string
 }
@@ -89,7 +93,15 @@ type PolicyConfig struct {
 	AllowRouteHeader    *bool             `yaml:"allow_route_header"`
 	AllowScopeHeader    bool              `yaml:"allow_scope_header"`
 	AllowImages         bool              `yaml:"allow_images"`
+	EncodedValues       string            `yaml:"encoded_values"`
+	MaxInflated         int               `yaml:"max_inflated_bytes"`
+	MaxInflatedRequest  int               `yaml:"max_inflated_request_bytes"`
 }
+
+const (
+	EncodedScan   = "scan"
+	EncodedRedact = "redact"
+)
 
 type Rule struct {
 	Name       string   `yaml:"name"`
@@ -173,6 +185,15 @@ func (c *Config) applyDefaults() {
 	if c.Policy.DefaultRoute == "" {
 		c.Policy.DefaultRoute = RouteMasked
 	}
+	if c.Policy.EncodedValues == "" {
+		c.Policy.EncodedValues = EncodedScan
+	}
+	if c.Policy.MaxInflated <= 0 {
+		c.Policy.MaxInflated = detect.InflateBlobMax
+	}
+	if c.Policy.MaxInflatedRequest <= 0 {
+		c.Policy.MaxInflatedRequest = detect.InflateRequestMax
+	}
 	if c.Policy.DateShiftScope == "" {
 		c.Policy.DateShiftScope = "global"
 	}
@@ -181,6 +202,9 @@ func (c *Config) applyDefaults() {
 	}
 	if c.MaxBodyBytes <= 0 {
 		c.MaxBodyBytes = 32 << 20
+	}
+	if c.MaxOpaqueBytes <= 0 {
+		c.MaxOpaqueBytes = DefaultMaxOpaqueBytes
 	}
 }
 
@@ -210,6 +234,11 @@ func (c *Config) Validate() error {
 		default:
 			errs = append(errs, fmt.Sprintf("upstreams.%s.api %q is not one of openai, anthropic", name, u.API))
 		}
+	}
+	switch c.Policy.EncodedValues {
+	case "", EncodedScan, EncodedRedact:
+	default:
+		errs = append(errs, fmt.Sprintf("policy.encoded_values %q is not one of scan, redact", c.Policy.EncodedValues))
 	}
 	if !validRoute(c.Policy.DefaultRoute) {
 		errs = append(errs, fmt.Sprintf("policy.default_route %q is not one of masked, local, passthrough, block", c.Policy.DefaultRoute))
@@ -312,6 +341,10 @@ func (r *Rule) MatchText(text string) bool {
 
 func (r *Rule) EntityTypes() []entity.Type { return r.types }
 
+func (c *Config) InflateLimits() detect.InflateLimits {
+	return detect.InflateLimits{Blob: c.Policy.MaxInflated, Request: c.Policy.MaxInflatedRequest}
+}
+
 func (c *Config) EnginePolicy() (outworld.Policy, error) {
 	p := outworld.DefaultPolicy()
 	for k, v := range c.Policy.Entities {
@@ -339,6 +372,7 @@ func (c *Config) EnginePolicy() (outworld.Policy, error) {
 	if c.Policy.ShiftMaxDays > 0 {
 		p.ShiftMaxDays = c.Policy.ShiftMaxDays
 	}
+	p.Inflate = c.InflateLimits()
 	return p, nil
 }
 
@@ -358,4 +392,8 @@ func (c *Config) MemoBytes() int64 {
 
 func (c *Config) RouteHeaderAllowed() bool {
 	return c.Policy.AllowRouteHeader == nil || *c.Policy.AllowRouteHeader
+}
+
+func (c *Config) RouteHeaderUnrestricted() bool {
+	return c.Policy.AllowRouteHeader != nil && *c.Policy.AllowRouteHeader
 }

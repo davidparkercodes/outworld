@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/davidparkercodes/outworld/internal/textutil"
@@ -165,14 +166,53 @@ func (d *Dictionary) Values() []string {
 	return out
 }
 
-var nameParticles = wordSet(`de del della di da dos das du van von der den ten ter la le el al bin ibn bint binti abu san st`)
+var nameParticles = wordSet(`de del della di da dos das du van von der den ten ter la le el al bin ibn bint binti abu san st ste`)
 
 func IsNameParticle(w string) bool { return nameParticles[strings.ToLower(w)] }
 
 type dictPhrase struct {
-	entry int
-	text  string
-	weak  bool
+	entry  int
+	text   string
+	weak   bool
+	joined int
+	titled bool
+}
+
+const (
+	joinedNone = iota
+	joinedFull
+	joinedInitial
+)
+
+var codeKeywords = wordSet(`class type func struct interface enum def new import extends implements`)
+
+func camelCase(w string) bool {
+	lower, innerUpper := false, false
+	for i, r := range w {
+		switch {
+		case unicode.IsLower(r):
+			lower = true
+		case unicode.IsUpper(r) && i > 0:
+			innerUpper = true
+		}
+	}
+	return lower && innerUpper
+}
+
+func CamelCaseIdentifier(w string) bool { return camelCase(w) }
+
+func codeIdentifierUse(text string, s, e int) bool {
+	rest := text[e:]
+	for _, p := range []string{"(", "{", "::", "<"} {
+		if strings.HasPrefix(rest, p) {
+			return true
+		}
+	}
+	if len(rest) > 1 && rest[0] == '.' && textutil.IsWordRune(rune(rest[1])) {
+		return true
+	}
+	w := wordsBefore(text, s, 1)
+	return len(w) > 0 && codeKeywords[w[0]]
 }
 
 type DictionaryDetector struct {
@@ -184,6 +224,14 @@ type DictionaryDetector struct {
 func (d *Dictionary) Detector() *DictionaryDetector {
 	dd := &DictionaryDetector{dict: d, matcher: textutil.NewMatcher()}
 	seen := map[string]bool{}
+	listed := map[string]bool{}
+	for _, e := range d.Entries {
+		for _, v := range append([]string{e.Value}, e.Aliases...) {
+			listed[strings.ToLower(strings.TrimSpace(v))] = true
+		}
+	}
+	joined := joinedNone
+	titled := false
 	add := func(entry int, text string, person bool, rules ...textutil.CaseRule) {
 		text = strings.TrimSpace(text)
 		if text == "" {
@@ -203,11 +251,19 @@ func (d *Dictionary) Detector() *DictionaryDetector {
 		if len(rules) > 0 {
 			rule = rules[0]
 		}
-		dd.phrases = append(dd.phrases, dictPhrase{entry: entry, text: text, weak: weak && person})
+		how := joined
+		if listed[key] {
+			how = joinedNone
+		}
+		dd.phrases = append(dd.phrases, dictPhrase{entry: entry, text: text, weak: weak && person, joined: how, titled: titled})
 		dd.matcher.Add(text, len(dd.phrases)-1, rule)
 		if folded := textutil.Fold(text); person && folded != key && !seen[folded] {
 			seen[folded] = true
-			dd.phrases = append(dd.phrases, dictPhrase{entry: entry, text: folded, weak: weak})
+			fhow := how
+			if listed[folded] {
+				fhow = joinedNone
+			}
+			dd.phrases = append(dd.phrases, dictPhrase{entry: entry, text: folded, weak: weak, joined: fhow, titled: titled})
 			dd.matcher.Add(folded, len(dd.phrases)-1, rule)
 		}
 	}
@@ -230,7 +286,9 @@ func (d *Dictionary) Detector() *DictionaryDetector {
 				words = append(words, strings.ToLower(form[t.Start:t.End]))
 			}
 			first, rest := words[0], words[1:]
-			if len(first) >= 2 {
+			if len(first) >= 2 && nameParticles[first] {
+				add(i, first, true, textutil.Capitalized)
+			} else if len(first) >= 2 {
 				add(i, first, true)
 			}
 			if last := words[len(words)-1]; len(last) >= 2 {
@@ -247,7 +305,9 @@ func (d *Dictionary) Detector() *DictionaryDetector {
 					if sep == "" && utf8.RuneCountInString(first+last) < 7 {
 						continue
 					}
+					titled = sep == " " && StopWord(first)
 					add(i, last+sep+first, true)
+					titled = false
 				}
 				fi := string([]rune(first)[:1])
 				li := string([]rune(last)[:1])
@@ -256,18 +316,26 @@ func (d *Dictionary) Detector() *DictionaryDetector {
 				}
 			}
 			for _, sep := range []string{".", "_", "-", ""} {
+				if sep == "" {
+					joined = joinedFull
+				}
 				add(i, strings.Join(words, sep), true)
 				add(i, first+sep+strings.Join(rest, ""), true)
 				add(i, first+sep+strings.Join(rest, sep), true)
 			}
+			joined = joinedNone
 			if len(first) < 2 {
 				continue
 			}
 			restJoined := strings.Join(rest, "")
 			fi, ri := string([]rune(first)[:1]), string([]rune(restJoined)[:1])
-			for _, h := range []string{fi + restJoined, fi + "." + restJoined, fi + "_" + restJoined, first + ri, first + "_" + ri, first + "." + ri} {
+			for hi, h := range []string{fi + restJoined, fi + "." + restJoined, fi + "_" + restJoined, first + ri, first + "_" + ri, first + "." + ri} {
 				if utf8.RuneCountInString(h) >= 5 {
+					if hi == 0 || hi == 3 {
+						joined = joinedInitial
+					}
 					add(i, h, true)
+					joined = joinedNone
 				}
 			}
 		}
@@ -279,9 +347,21 @@ func (d *DictionaryDetector) Name() string { return "dictionary" }
 
 func (d *DictionaryDetector) Detect(_ context.Context, text string) ([]entity.Span, error) {
 	var out []entity.Span
+	present := map[int]bool{}
 	for _, m := range d.matcher.FindAll(text) {
 		p := d.phrases[m.ID]
-		if p.weak && !NameUseOK(text, m.Start, m.End) {
+		if p.weak && !NameUseOK(text, m.Start, m.End) || p.titled && !everyWordCapitalized(text[m.Start:m.End]) {
+			continue
+		}
+		if person := d.dict.Entries[p.entry].Type == entity.Person; person {
+			switch n := len(textutil.Tokens(text[m.Start:m.End])); {
+			case n == 1 && p.joined == joinedNone && NamedThingUse(text, m.Start, m.End):
+				continue
+			case n >= 2:
+				present[p.entry] = true
+			}
+		}
+		if p.joined != joinedNone && camelCase(text[m.Start:m.End]) && (p.joined == joinedInitial || codeIdentifierUse(text, m.Start, m.End)) {
 			continue
 		}
 		e := d.dict.Entries[p.entry]
@@ -290,7 +370,38 @@ func (d *DictionaryDetector) Detect(_ context.Context, text string) ([]entity.Sp
 			Source: "dictionary", Priority: 65, Score: 1, Canonical: e.Value, Generalized: e.Generalize, Gender: genderCode(e.Gender),
 		})
 	}
+	if len(present) > 0 {
+		var people []string
+		gender := map[string]string{}
+		for i, e := range d.dict.Entries {
+			if present[i] {
+				people = append(people, e.Value)
+				gender[e.Value] = genderCode(e.Gender)
+			}
+		}
+		var lists []nameList
+		listed := false
+		lazy := func() []nameList {
+			if !listed {
+				lists, listed = nameLists(text, nil), true
+			}
+			return lists
+		}
+		for _, sp := range initialismSpans(text, people, lazy, "dictionary", 65) {
+			sp.Gender = gender[sp.Canonical]
+			out = append(out, sp)
+		}
+	}
 	return out, nil
+}
+
+func everyWordCapitalized(s string) bool {
+	for _, w := range strings.Fields(s) {
+		if !textutil.StartsUpper(w) {
+			return false
+		}
+	}
+	return true
 }
 
 func genderCode(g string) string {

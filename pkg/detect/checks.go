@@ -44,10 +44,34 @@ func validCard(s string) bool {
 	if len(d) < 13 || len(d) > 19 {
 		return false
 	}
-	if !strings.ContainsAny(d[:1], "23456") {
+	return cardPrefixOK(d) && Luhn(d)
+}
+
+func cardPrefixOK(d string) bool {
+	n := len(d)
+	p2 := num2(d, 0)
+	switch d[0] {
+	case '4':
+		return n == 13 || n == 16 || n == 19
+	case '5':
+		return n == 16 || n >= 16 && (p2 == 50 || p2 >= 56)
+	case '2':
+		p4 := p2*100 + num2(d, 2)
+		return n == 16 && p4 >= 2221 && p4 <= 2720
+	case '3':
+		switch p2 {
+		case 34, 37:
+			return n == 15
+		case 30, 36, 38, 39:
+			return n == 14
+		case 35:
+			return n == 16
+		}
 		return false
+	case '6':
+		return n >= 16
 	}
-	return Luhn(d)
+	return false
 }
 
 func ValidIBAN(s string) bool {
@@ -97,7 +121,45 @@ func validIPv6(s string) bool {
 		return false
 	}
 	ip := net.ParseIP(s)
-	return ip != nil && ip.To4() == nil
+	return ip != nil && (ip.To4() == nil || !strings.Contains(s, "."))
+}
+
+func validIPv6Embedded(s string) bool {
+	return strings.Count(s, ":") >= 2 && strings.Count(s, ".") == 3 && net.ParseIP(s) != nil
+}
+
+var (
+	ipLinkLocal4 = &net.IPNet{IP: net.IPv4(169, 254, 0, 0).To4(), Mask: net.CIDRMask(16, 32)}
+	ipResolvers  = []net.IP{
+		net.ParseIP("8.8.8.8"), net.ParseIP("8.8.4.4"), net.ParseIP("1.1.1.1"), net.ParseIP("1.0.0.1"), net.ParseIP("9.9.9.9"),
+		net.ParseIP("2001:4860:4860::8888"), net.ParseIP("2001:4860:4860::8844"),
+		net.ParseIP("2606:4700:4700::1111"), net.ParseIP("2606:4700:4700::1001"),
+		net.ParseIP("2620:fe::fe"), net.ParseIP("2620:fe::9"),
+	}
+)
+
+func nonPersonalIP(s string) bool {
+	ip := net.ParseIP(s)
+	if ip == nil {
+		return false
+	}
+	for _, r := range ipResolvers {
+		if ip.Equal(r) {
+			return true
+		}
+	}
+	if v4 := ip.To4(); v4 != nil {
+		if v4[0] == 127 || ipLinkLocal4.Contains(v4) || v4.Equal(net.IPv4zero.To4()) {
+			return true
+		}
+		if v4[0] == 255 {
+			if ones, bits := net.IPMask(v4).Size(); bits == 32 && ones >= 8 {
+				return true
+			}
+		}
+		return false
+	}
+	return ip.Equal(net.IPv6loopback) || ip.Equal(net.IPv6unspecified) || ip.To4() == nil && ip.IsLinkLocalUnicast()
 }
 
 func ShannonEntropy(s string) float64 {

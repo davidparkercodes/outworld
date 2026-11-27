@@ -1,0 +1,10 @@
+version: 2
+secret:
+  ignored_paths:
+    - "eval/corpus/**"
+    - "eval/cmd/gencorpus/**"
+    - "eval/cmd/genholdout/**"
+    - "eval/cmd/genholdout2/**"
+    - "eval/cmd/genholdout3/**"
+    - "**/*_test.go"
+    - "**/testdata/**"

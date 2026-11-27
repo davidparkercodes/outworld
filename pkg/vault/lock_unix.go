@@ -1,4 +1,4 @@
-//go:build unix
+//go:build linux || darwin || freebsd || netbsd || openbsd || dragonfly
 
 package vault
 
@@ -6,6 +6,8 @@ import (
 	"os"
 	"syscall"
 )
+
+var singleProcess = false
 
 func lockPath(path string) (func(), error) {
 	fh, err := os.OpenFile(path+".lock", os.O_CREATE|os.O_RDWR, 0o600)
@@ -20,4 +22,13 @@ func lockPath(path string) (func(), error) {
 		syscall.Flock(int(fh.Fd()), syscall.LOCK_UN)
 		fh.Close()
 	}, nil
+}
+
+func syncDir(dir string) error {
+	d, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+	defer d.Close()
+	return d.Sync()
 }

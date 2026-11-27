@@ -30,6 +30,21 @@ func NameUseOK(text string, start, end int) bool {
 	if len(textutil.Tokens(w)) != 1 {
 		return true
 	}
+	if NamedThingUse(text, start, end) {
+		return false
+	}
+	if IsTechTerm(w) {
+		rest := text[end:]
+		return lowerNameContext(text, start, end) || personEvidence(text, start, end) || strings.HasPrefix(rest, "'s ") || strings.HasPrefix(rest, "’s ")
+	}
+	return nameUseOK(text, start, end)
+}
+
+func nameUseOK(text string, start, end int) bool {
+	w := text[start:end]
+	if len(textutil.Tokens(w)) != 1 {
+		return true
+	}
 	weak := textutil.IsCommonWord(w) || utf8.RuneCountInString(w) <= 3
 	if !weak {
 		return true
@@ -76,18 +91,48 @@ func lowerNameContext(text string, start, end int) bool {
 	return false
 }
 
-func lineBounds(text string, start, end int) (int, int) {
-	ls := strings.LastIndexByte(text[:start], '\n') + 1
-	le := strings.IndexByte(text[end:], '\n')
-	if le < 0 {
-		return ls, len(text)
+const contextWindow = 320
+
+func windowStart(text string, pos int) int {
+	lo := pos - contextWindow
+	if lo <= 0 {
+		return 0
 	}
-	return ls, end + le
+	for lo < pos && !utf8.RuneStart(text[lo]) {
+		lo++
+	}
+	return lo
 }
+
+func windowEnd(text string, pos int) int {
+	hi := pos + contextWindow
+	if hi >= len(text) {
+		return len(text)
+	}
+	for hi > pos && !utf8.RuneStart(text[hi]) {
+		hi--
+	}
+	return hi
+}
+
+func lineBounds(text string, start, end int) (int, int) {
+	lo, hi := windowStart(text, start), windowEnd(text, end)
+	ls := lo
+	if i := strings.LastIndexByte(text[lo:start], '\n'); i >= 0 {
+		ls = lo + i + 1
+	}
+	le := hi
+	if i := strings.IndexByte(text[end:hi], '\n'); i >= 0 {
+		le = end + i
+	}
+	return ls, le
+}
+
+const wordScanLimit = 64
 
 func wordBefore(text string, i int) string {
 	j := i
-	for j > 0 {
+	for j > 0 && i-j < wordScanLimit {
 		r, n := utf8.DecodeLastRuneInString(text[:j])
 		if r == '\n' || r == '.' || r == '!' || r == '?' {
 			return ""
@@ -98,7 +143,7 @@ func wordBefore(text string, i int) string {
 		j -= n
 	}
 	k := j
-	for k > 0 {
+	for k > 0 && j-k < wordScanLimit {
 		r, n := utf8.DecodeLastRuneInString(text[:k])
 		if !textutil.IsWordRune(r) {
 			break
@@ -110,7 +155,7 @@ func wordBefore(text string, i int) string {
 
 func wordAfter(text string, i int) string {
 	j := i
-	for j < len(text) {
+	for j < len(text) && j-i < wordScanLimit {
 		r, n := utf8.DecodeRuneInString(text[j:])
 		if r == '\n' {
 			return ""
@@ -124,7 +169,7 @@ func wordAfter(text string, i int) string {
 		j += n
 	}
 	k := j
-	for k < len(text) {
+	for k < len(text) && k-j < wordScanLimit {
 		r, n := utf8.DecodeRuneInString(text[k:])
 		if !textutil.IsWordRune(r) {
 			break
@@ -161,10 +206,22 @@ func CapitalizedNameAfter(text string, i int) int {
 		return i
 	}
 	w := text[j:end]
-	if textutil.IsCommonWord(w) || IsMonthOrWeekday(w) || textutil.IsAllUpper(w) || notSurname[strings.ToLower(w)] {
+	if textutil.IsCommonWord(w) || IsMonthOrWeekday(w) || textutil.IsAllUpper(w) || notSurname[strings.ToLower(w)] || thingNouns[strings.ToLower(w)] || compoundHead(text, j, end) {
 		return i
 	}
 	return end
+}
+
+func compoundHead(text string, j, end int) bool {
+	r, n := utf8.DecodeRuneInString(text[end:])
+	if !textutil.IsNameJoiner(r) {
+		return false
+	}
+	k := end + n
+	for k < len(text) && k-end < maxDashGap && text[k] >= 'a' && text[k] <= 'z' {
+		k++
+	}
+	return k > end+n && particleCompound(text[j:k])
 }
 
 func nameWordEnd(text string, j int) int {
@@ -174,12 +231,15 @@ func nameWordEnd(text string, j int) int {
 	}
 	k := j
 	for k < len(text) {
+		if k-j >= wordScanLimit {
+			return j
+		}
 		r, n := utf8.DecodeRuneInString(text[k:])
 		if unicode.IsLetter(r) {
 			k += n
 			continue
 		}
-		if (r == '-' || r == '\'' || r == '’') && k+n < len(text) {
+		if (textutil.IsHyphen(r) || r == '\'' || r == '’') && k+n < len(text) {
 			nr, _ := utf8.DecodeRuneInString(text[k+n:])
 			if unicode.IsUpper(nr) {
 				k += n
@@ -200,6 +260,9 @@ func CapitalizedWordBefore(text string, i int) (int, string) {
 	}
 	k := i - 1
 	for k > 0 {
+		if i-1-k >= wordScanLimit {
+			return i, ""
+		}
 		r, n := utf8.DecodeLastRuneInString(text[:k])
 		if !unicode.IsLetter(r) {
 			break
@@ -223,4 +286,151 @@ func speakerColon(rest string) bool {
 		return false
 	}
 	return len(rest) == 1 || rest[1] == ' ' || rest[1] == '\t'
+}
+
+var personVerbs = wordSet(`said says called calls emailed emails texted texts replied replies asked asks told tells wrote writes joined joins messaged pinged mentioned thinks thought agreed suggested confirmed laughed smiled nodded waved phoned answered apologized apologised volunteered resigned retired`)
+
+var personWorkVerbs = wordSet(`reviewed approved merged fixed pushed shipped deployed committed signed sent posted shared booked paid added opened closed filed reported built tested updated owns leads owned led commented rejected requested submitted noticed found`)
+
+var personMotionVerbs = wordSet(`went came left met arrived visited stopped headed drove flew walked ate`)
+
+var personVerbBase = wordSet(`join call email text reply ask tell write review present attend lead cover help handle follow send confirm meet visit drive bring host speak talk be know need want take come go start leave work run check look sign approve fix own share update`)
+
+var personModals = wordSet(`will would can could should might must may won't can't couldn't wouldn't shouldn't didn't doesn't did does`)
+
+var personStates = wordSet(`out sick away off back here late available free busy ooo traveling travelling joining leaving coming running covering reviewing presenting driving working visiting hosting attending leading calling waiting retiring on`)
+
+var personLeftAfter = wordSet(`a me us him her early late today yesterday the`)
+
+var directedVerbs = wordSet(`ask asked asking tell told telling email emailed emailing call called calling ping pinged pinging cc cced cc'd text texted texting message messaged messaging thank thanked thanks invite invited remind reminded notify notified phone phoned met meet meeting saw see seeing visit visited hired fired promoted introduce introduced congratulate congratulated`)
+
+var directedPreps = wordSet(`with to from`)
+
+var directedPrepVerbs = wordSet(`call calls called calling met meet meeting meets spoke speak speaking spoken talked talk talking chat chatted chatting heard hear lunch dinner coffee breakfast drinks sync synced replied reply replying wrote write writing listen listened`)
+
+var roleBefore = wordSet(`colleague coworker teammate manager director engineer intern recruiter professor coach cousin uncle aunt nurse attorney lawyer neighbor neighbour friend contractor tenant landlord plumber dentist doctor teacher officer agent detective judge senator councilman councilwoman coordinator supervisor technician developer designer accountant mister`)
+
+func wordsAfter(text string, e, n int) []string {
+	var out []string
+	j := e
+	for len(out) < n {
+		if j >= len(text) || text[j] != ' ' {
+			break
+		}
+		j++
+		k := j
+		for k < len(text) && k-j < wordScanLimit {
+			r, sz := utf8.DecodeRuneInString(text[k:])
+			if !textutil.IsWordRune(r) && !((r == '\'' || r == '’') && k > j) {
+				break
+			}
+			k += sz
+		}
+		if k == j {
+			break
+		}
+		out = append(out, strings.ToLower(strings.TrimRight(text[j:k], "'’")))
+		j = k
+	}
+	return out
+}
+
+func wordsBefore(text string, s, n int) []string {
+	var out []string
+	j := s
+	for len(out) < n {
+		if j <= 0 || text[j-1] != ' ' {
+			break
+		}
+		j--
+		if j > 0 && text[j-1] == ':' && len(out) == 0 {
+			j--
+		}
+		k := j
+		for k > 0 && j-k < wordScanLimit {
+			r, sz := utf8.DecodeLastRuneInString(text[:k])
+			if !textutil.IsWordRune(r) && r != '\'' {
+				break
+			}
+			k -= sz
+		}
+		if k == j {
+			break
+		}
+		out = append(out, strings.ToLower(text[k:j]))
+		j = k
+	}
+	return out
+}
+
+func personVerbAfter(text string, e int) bool {
+	w := wordsAfter(text, e, 3)
+	if len(w) == 0 {
+		return false
+	}
+	switch {
+	case personVerbs[w[0]]:
+		return true
+	case w[0] == "left":
+		return len(w) > 1 && personLeftAfter[w[1]]
+	case personModals[w[0]]:
+		if len(w) > 2 && (w[1] == "not" || w[1] == "also" || w[1] == "be") {
+			return personVerbBase[w[2]] || personStates[w[2]]
+		}
+		return len(w) > 1 && personVerbBase[w[1]]
+	case w[0] == "is" || w[0] == "was" || w[0] == "isn't" || w[0] == "wasn't":
+		return len(w) > 1 && personStates[w[1]]
+	case w[0] == "has" || w[0] == "had":
+		return len(w) > 1 && (personVerbs[w[1]] || w[1] == "left" || w[1] == "been" && len(w) > 2 && personStates[w[2]])
+	}
+	return false
+}
+
+func PersonEvidence(text string, s, e int) bool {
+	return PersonActionAfter(text, e) || personDirectedBefore(text, s)
+}
+
+func PersonActionAfter(text string, e int) bool {
+	if personActionAt(text, e) {
+		return true
+	}
+	if w := wordAfter(text, e); e < len(text) && text[e] == ' ' && nameParticles[strings.ToLower(w)] && w != "" {
+		next := e + 1 + len(w)
+		if StreetAbbrev(w) && next < len(text) && text[next] == '.' {
+			next++
+		}
+		return personActionAt(text, next)
+	}
+	return false
+}
+
+func StreetAbbrev(w string) bool { return abbrevParticles[strings.ToLower(strings.TrimSuffix(w, "."))] }
+
+func personActionAt(text string, e int) bool {
+	w := wordAfter(text, e)
+	return personVerbAfter(text, e) || personWorkVerbs[w] || personMotionVerbs[w] || lowerNameAfter[w]
+}
+
+func personDirectedBefore(text string, s int) bool {
+	w := wordsBefore(text, s, 2)
+	if len(w) == 0 {
+		return false
+	}
+	if directedVerbs[w[0]] {
+		return true
+	}
+	return len(w) > 1 && directedPreps[w[0]] && directedPrepVerbs[w[1]]
+}
+
+func sentenceBounds(text string, s, e int) (int, int) {
+	lo, hi := windowStart(text, s), windowEnd(text, e)
+	a := lo
+	if i := strings.LastIndexAny(text[lo:s], ".!?\n"); i >= 0 {
+		a = lo + i + 1
+	}
+	b := hi
+	if i := strings.IndexAny(text[e:hi], ".!?\n"); i >= 0 {
+		b = e + i
+	}
+	return a, b
 }

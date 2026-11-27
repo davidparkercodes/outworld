@@ -46,7 +46,7 @@ litellm --config config.yaml
 
 ### Choosing a route per model
 
-`X-Outworld-Route` picks a route when `policy.allow_route_header` is true (the default). To fix a route for one LiteLLM model, set the header in `litellm_params`:
+`X-Outworld-Route` can pick any route only when `policy.allow_route_header` is true; when it is unset (the default) the header may only make routing stricter (`block`, then `local`, then `masked`, then `passthrough`) and is refused with 403 otherwise. To fix a route for one LiteLLM model, set the header in `litellm_params`:
 
 ```yaml
 model_list:
@@ -76,7 +76,7 @@ litellm_settings:
       - private-chat
 ```
 
-With this setting LiteLLM forwards client headers that start with `x-`, so a client can send `X-Outworld-Route: local` (or `masked`, `passthrough:<upstream>`, `block`) on a single request. Anyone who can call that model can then pick the route, including `passthrough`. Leave forwarding off, or set `policy.allow_route_header: false`, if clients should not have that choice.
+With this setting LiteLLM forwards client headers that start with `x-`, so a client can send `X-Outworld-Route: local` (or `masked`, `passthrough:<upstream>`, `block`) on a single request. With `policy.allow_route_header: true`, anyone who can call that model can then pick the route, including `passthrough`. Leave it unset so clients can only tighten routing, or set it to `false` to ignore the header.
 
 ## Placement B: Outworld in front
 

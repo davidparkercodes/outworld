@@ -188,7 +188,7 @@ Annotation decisions:
 
 ## Second held-out corpus
 
-`corpus/holdout2.json` and `corpus/holdout2-people.csv` are a blind replacement for the first held-out corpus, which stopped being held out once detector work was guided by its misses. Same schema, same harness:
+`corpus/holdout2.json` and `corpus/holdout2-people.csv` are a blind replacement for the first held-out corpus, which stopped being held out once detector work was guided by its misses. It is no longer fully blind either: its per-type totals (not its individual leaks) pointed the later work on secrets, government IDs and bank details, so the third held-out corpus below is the blind one. Same schema, same harness:
 
 ```bash
 go run ./cmd/outworld-eval --corpus corpus/holdout2.json --people corpus/holdout2-people.csv --out ../.work/eval-holdout2
@@ -218,3 +218,80 @@ Items tagged `long` have more than 2,000 words. Items tagged `negative` (17) hav
 - Historical and fictional figures are annotated the same way (`not-entity:public-figure`, `not-entity:fictional`), in items that contain no private person. Masking them is reversible and not a privacy failure, but it takes away what the model knows about them, so it is counted as over-masking. Leave those variants out if you disagree.
 - A date needs a month and a day in its surface text. A bare weekday or day of month ("Friday", "the 10th") is not annotated even when the thread makes the date clear.
 - There are no `facts`, so this corpus does not take part in the real-upstream quality comparison.
+
+## Third held-out corpus
+
+`corpus/holdout3.json` and `corpus/holdout3-people.csv` are a blind replacement for the second held-out corpus. Same schema, same harness:
+
+```bash
+go run ./cmd/outworld-eval --corpus corpus/holdout3.json --people corpus/holdout3-people.csv --out ../.work/eval-holdout3
+go run ./cmd/genholdout3                 # regenerate both files (deterministic)
+go run ./cmd/genholdout3 -lint -stats    # lint warnings, then counts by family, type and variant
+go run ./cmd/genholdout3 -mint "es-dni:47382915?"   # fill each ? so an invented identifier passes its checksum
+go test ./cmd/genholdout3                # drift, offsets, overlaps, checksums, mix, earlier names, lint
+```
+
+**Blindness rules.** The author worked in an isolated copy that held only `eval/README.md`, `corpus/corpus.go`, `score/`, `upstream/` and the machinery of `cmd/genholdout2` (`main.go`, `long_gen.go`, `holdout2_test.go`) without its item or people files. The gateway packages, the detectors, the project docs, every earlier corpus and every earlier item file were out of reach and were not read. The earlier people files were present only so the test could load them; they were never opened by hand, and the test prints nothing but the offending name from this corpus's own table. No gateway was run and no results were seen. The same rules apply to anyone who extends it. Read the headline numbers only: do not open the leak list for this corpus while changing detectors, and replace the corpus once it has been used to guide a fix.
+
+**What is in it.** 131 items, about 43,400 words and 4,208 spans (3,041 on sensitive types, 1,163 on kept types of which 662 are lookalikes, 4 quasi-identifiers), written by hand as inline markup in `cmd/genholdout3`. Every offset is computed. 188 invented people (168 in the people table, 20 one-off relatives and clerks), 89 of them in `holdout3-people.csv` with the aliases a user would write (nicknames, ASCII folds, former names, handles, "Abuela Chayo", "Fujisawa-san"). 102 people appear in three or more items. A test fails if any name is in an earlier people file; nine first drafts were, and were renamed. The first tag of every item is its family:
+
+| Family (first tag) | Items | Words | Spans | Genres |
+|---|---|---|---|---|
+| `code` | 24 | 3,700 | 569 | git log, blame, reflog and merge conflict, Python and Java stack traces, crash reports with macOS and Windows home paths, compose file, SQL dump, CI log, review thread, TODO comments, shell history, `package.json`, pnpm, Go, pip and Poetry lock data with hashes, CODEOWNERS, nginx log, notebook output, API JSON, Terraform plan, on-call alert thread, GitHub issue, an agent session with tool calls |
+| `work` | 18 | 4,000 | 588 | meeting notes with initials, quoted email thread with signatures, Slack and Teams transcripts, HR file note, recruiting debrief, support ticket, CRM export, ICS invite, performance review, offer letter, expense claim, stand-up in initials only, call transcript, supplier form, newsletter, payroll diversion emails, out-of-office chain |
+| `personal` | 16 | 4,200 | 493 | family group chat, GP referral, insurance denial, flight booking with passports and a machine-readable line, tax question, card dispute, solicitor's letter, school email, rental application, wedding guest list, intestacy question, rail and hotel confirmations, pharmacy message, visa form, vet summary, flatmate advice |
+| `data` | 14 | 2,000 | 429 | CSV, TSV, JSON, YAML, auth log, markdown table, label and value form, OCR scan, all caps notice, unpunctuated dictation, vCard, SOAP XML, fixed-width report, NDJSON |
+| `intl` | 27 | 5,300 | 786 | Spanish (Spain, Mexico, Argentina and Chile), French (France, Senegal, Québec), German (Germany, Switzerland), Portuguese (Brazil, Portugal), Italian, Dutch, Polish, Swedish, Turkish, Vietnamese, Indonesian and Tagalog, Hinglish, a Swahili note, and short items in Chinese, Japanese, Korean, Russian, Arabic, Greek, Hebrew and Hindi; onboarding sheets for Africa, Asia, Australia and New Zealand |
+| `secrets` | 12 | 1,800 | 236 | `.env` with many vendors, passwords in prose, Kubernetes secret, PEM and age keys next to public keys, one-time and recovery codes, curl commands, a workflow file, JWT debugging, tokens in logs, a password manager export, config files pasted into chat, and one file of lookalikes only |
+| `negatives` | 11 | 2,100 | 400 | companies named after people, places and products that are first names, eponyms, public and fictional figures, ordinary words that are names, pet names, part and order numbers with measurements, months and weekdays, arithmetic; one item mixes real colleagues with their namesakes (Paris in Paris, April in April) |
+| `long` | 9 | 20,400 | 707 | nine items over 2,000 words: agent session with test output, CI log, lock file, service log, SQL dump, a conversation about an import script, an email chain with a pasted rate table, a tenancy agreement with inventory, a postmortem with its paging log |
+
+Twelve items are tagged `negative` (no sensitive span at all). Eighteen are `multi-turn`, three have a system prompt. 38 items carry `facts` (74 date and person pairs), so this corpus takes part in the real-upstream quality comparison. The bulk of the long logs, the lock file, the SQL rows, the source file, the rate table and the inventory come from small deterministic loops in `long_gen.go`; every line that holds a sensitive value is placed by hand.
+
+Spans by type: person 1,522, date 535, email 259, phone 236, gov_id 155, address 124, secret 118, financial 92, org 850, location 313, quasi 4.
+
+**Values.** Everything is invented. Emails are on `.example` and RFC 2606 domains. Phone numbers use published fictional ranges where a country has one and made-up subscriber numbers elsewhere. Government and bank identifiers cover 50 country codes; wherever the scheme has a check digit the value was constructed to pass it and the test verifies it (`checks.go`: Luhn, IBAN mod 97, Spanish DNI and NIE, Italian codice fiscale, Dutch BSN, Portuguese NIF, PESEL, Swedish, Norwegian, Danish, Finnish and Icelandic numbers, Swiss AHV, French NIR, German tax ID, Czech birth number, Turkish, Greek, Russian, Irish and UK NHS numbers, US routing numbers, Canadian SIN, CURP, RFC, CLABE, CPF, RUT, CUIL, CBU, Aadhaar, Chinese, Japanese, Korean, Singaporean, Hong Kong, Taiwanese, Thai, Israeli, Emirati and South African IDs, Australian TFN and Medicare, New Zealand IRD). Formats without a public checksum are format-only. US Social Security numbers use never-issued ranges, UK National Insurance numbers the `QQ` prefix, German ID cards the specimen numbers. Cards are published processor test numbers or constructed Luhn-valid numbers. Keys and tokens follow vendor shapes with made-up bodies.
+
+**Markup added to the second generator.** `{{x|reason|text}}` marks plain text that was reviewed and deliberately left without a span; it produces no span, the lint skips it and `-stats` counts the reasons. `[[lb]]`, `[[rb]]` and `[[pipe]]` inside a field stand for `{{`, `}}` and `|`. `.on("2026-02-05", "key", ...)` on an item adds facts. Government and financial variants are `<country>-<kind>` (`es-dni`, `gb-iban`), and their canonical form and needle drop spaces, dots, dashes and slashes.
+
+**Lint.** `-lint` warns when a sensitive value, or any name or name part of a person in the people table, occurs as plain text; when text looks like an unannotated email, date (numeric, or a day with a month name in seven languages), phone number or IBAN; and when a run of seven or more digits has no span. It reports 0 warnings, and the test fails if that changes. Eighteen places are marked as reviewed plain text: a wrong name a customer complains about ("Stephen", 3), ordinary words next to a colleague of that name (4), a company register number, two employer tax IDs, a medical record number, a doctor's registration number, a railcard number, a username equal to its password, a fraction, and three strings in an arithmetic question that only look like phone numbers and a date.
+
+**Annotation decisions that differ from the second held-out corpus.**
+
+- Every street address is `address`, home or business, because a detector cannot tell them apart; a company's own address counts as sensitive here. In records with separate fields the street is `address`, the city is `location`, and a bare postcode has no span. A multi-line address is one span whose needle is the street line.
+- Every email address is `email`, including role mailboxes. Placeholders (`test@example.com`) and an SSH remote (`git@host`) are lookalikes instead.
+- A date needs a month and a day, in any script or calendar (`令和8年4月1日`, `13 เม.ย. 2518`, `02NOV26`, `20260609T140000`, spoken "the tenth of march"). An ISO timestamp is one span up to its zone, because the scorer needs a word boundary. Epoch seconds, bare years, months, weekdays and "the 16th" are not dates.
+- A title is outside the span (`Dr {Prys}`, variant `title-last`); a kinship word or honorific that is fused with the name in speech is inside it (`{Opa Wim}`, `{Cô Hương}`, `{Fujisawa-san}`, variant `honorific`). A possessive span excludes the `'s`.
+- User names, handles, home directory names and branch name parts that are built from a person's name are `person`. Initials are `person` wherever they stand for a person, including line labels.
+- `secret` covers credentials of every kind, including password hashes, one-time codes, door and pickup codes, security answers, card verification codes and whole URLs that embed a credential (the needle is the credential). Public keys, fingerprints, checksums, key ids and references such as `${{ secrets.X }}` are lookalikes.
+- `financial` is card, account, routing and policy numbers and payment aliases. Amounts, card expiry dates, last four digits, bank names and BIC codes are not annotated.
+- Not annotated, as before: IP addresses, booking references, ticket and case numbers that are not marked as lookalikes, company tax and register numbers, medical record numbers.
+- Hard negatives use `org` with a `not-entity:` variant, as in the second corpus. New kinds: `checksum`, `uuid`, `measurement`, `money`, `weekday`, `order-number`, `part-number`, `template-reference`. Real organisations are `company`, `company-eponym` or `product`; places that are also names are `location` with `place-name`, `place-eponym`, `country` or `room-name`. Filter on the variant in `report.json` to separate them.
+- A value is never a secret in one place and a lookalike in another within the same item, since no consistent gateway could score well on both.
+- Three items put a person next to a kept namesake on purpose (Chad the colleague and Chad the country, Paris in Paris, Clay and clay). Both sides are annotated; the leak baseline counts the kept occurrences, so only a gateway that tells them apart scores cleanly on both.
+
+**New person variants.** Added to the earlier set (`full`, `first`, `last`, `nickname`, `possessive`, `caps`, `lower`, `lower-first`, `title-last`, `last-first`, `markdown`, `url-slug`, `handle`, `initials`, `initial-last`, `first-initial`, `path`, `ascii-fold`, `misspelled`, `sql-escaped`):
+
+| Variant | Meaning |
+|---|---|
+| `lower-last`, `caps-first`, `caps-last` | one part of the name in lower or upper case |
+| `caps-reversed`, `caps-truncated` | `SURNAME GIVEN` without a comma, and the same cut off by a fixed-width field |
+| `family-first`, `western-order` | the other order for a name whose usual order is family name first, or the reverse |
+| `native-script` | the name in Cyrillic, Arabic, Chinese, Japanese (kanji or kana), Korean, Greek, Hebrew or Devanagari |
+| `patronymic` | given name and patronymic as a form of address (`Тимур Ринатович`) |
+| `inflected` | a case-inflected form (`Agnieszko`, `Bartosza Wiśniewskiego`) |
+| `maiden` | birth surname |
+| `alias` | another legal or former rendering (`Susan` for Sue, a married name, a transliteration) |
+| `name-part` | one piece of a compound name (`Kaur`, `bin Rashid`, the first of two surnames) |
+| `initial-first` | initial before the given name (`S. Rajeshwari`) |
+| `middle` | full name with a middle initial |
+| `honorific` | name fused with a kinship word or honorific |
+| `teknonym` | `Abu Khalid` style |
+| `display` | chat display name, sometimes with an emoji |
+| `booking` | airline reservation form (`KOBAYAKAWA/MINORI MS`) |
+| `mrz` | the name inside a passport machine-readable line |
+| `ocr` | a name with scanner errors |
+
+Phone variants `spoken` (digits as words), `ocr` and `url-encoded` exist for the same reason.
+
+**Known limits.** The lint only knows the people table and a handful of shapes, so a one-off name that is mentioned once without markup would go unnoticed; the capitalised words and digit runs outside spans were read through by hand once. People count (188) is above the planned 150 because one-off relatives were added late. Organisations are annotated where they matter as hard cases, not exhaustively.
