@@ -1,0 +1,63 @@
+# Policy is yours
+
+Outworld does not decide what is sensitive. You do. Your employer may be public on your profile; your kid's school is not. Each entity type gets an action:
+
+| action       | effect                                                                 | restored? |
+|--------------|------------------------------------------------------------------------|-----------|
+| `keep`       | sent as-is                                                             | n/a       |
+| `mask`       | replaced with a realistic, consistent surrogate from the vault         | yes       |
+| `shift`      | dates moved by a secret per-scope offset (days), format preserved      | yes       |
+| `generalize` | replaced with a bucket, e.g. `Norfolk, Virginia` to `a city in Virginia` | no      |
+| `strip`      | replaced with a neutral token like `[redacted code]`, never sent       | no        |
+
+Entity types: `person`, `email`, `phone`, `address`, `date`, `org`, `location`, `url`, `ip`, `secret`, `gov_id`, `financial`.
+
+Defaults: people, emails, phones, addresses and IPs are masked; dates shifted; orgs, locations and plain URLs kept; secrets, government IDs and financial numbers stripped. Secret-bearing links (password resets, magic links, URLs with tokens) are classified as `secret` and stripped. Secrets also cover passwords in prose (`my temporary password was ...`), `KEY=value` / `export API_KEY=...` assignments, and long hex or base64 tokens next to words like `credential` or `token`. Any SSN-shaped number next to `SSN`, `social security` or `tax id` is a `gov_id` in any separator form (`123-45-6789`, `123 45 6789`, `123456789`), regardless of whether that range was ever issued. Other pattern coverage: phone numbers in national formats with a leading `0` or `+` (`07911 123456`, `030 12345 678`, `01 23 45 67 89`) and spoken as digit words (`four one five five five five ...`); identifiers after a label such as passport, driver's license, EIN, tax ID, national ID, DNI/NIE/NIF, NINO, A-number, SIN, Medicare, MRN, policy number or member ID, plus unlabelled Spanish DNI/NIE and UK NINO shapes; values after `pass`, `secret`, `token` or `api key` followed by `:`, `=` or `is` when they do not look like a plain word or a code expression; bare 32, 40 and 64 character hex strings unless the line is git or checksum output (`commit ...`, `sha256: ...`, a hash that starts a line followed by more text) or labels it as an id; and street addresses in French, Spanish, Portuguese, Italian, German, Dutch and UK forms with their postal code and city, plus all-caps US mailing labels.
+
+## Surrogates
+
+- Realistic, never `<PERSON_1>`: `John Smith` becomes `Kasimir Sandoval`, `John` alone becomes `Kasimir`, `JOHN SMITH` becomes `KASIMIR SANDOVAL`, `john.smith` in a URL becomes `kasimir.sandoval`, `John's` keeps its `'s`.
+- Deterministic per vault (HMAC of a vault secret), consistent across requests and a whole corpus, collision-free, and never equal to any real value the vault or your dictionary knows.
+- Shape-preserving: emails stay valid on reserved `example.com/.org/.net` domains, phones use the fictional `555-01xx` range with the original formatting, addresses keep number length, street suffix, unit and state (addresses outside the US style keep their street word, layout and postal code shape), phones in national formats keep the leading `0` or country code and the grouping, spoken numbers stay digit words, IPs use documentation ranges.
+- Locale-aware addresses: an address that reads as French, Spanish, Portuguese, Italian, German (including Austrian and Swiss forms), Dutch or UK gets a stand-in from the same country, with street names in that language's grammar, a real mid-sized town and a postal code that fits it. `12 rue de Rivoli, 75001 Paris` becomes something like `63 rue de Montreuil, 47000 Agen`, and `Lindenstraße 8, 50674 Köln` something like `Bergstraße 5, 35060 Marburg`. Multi-word street and town names keep their word count and connectives (`Jerez de la Frontera` becomes something like `Palencia de la Sierra`). Detection covers street-first and number-first forms, postcodes with a country prefix (`CH-8001`), floor and unit parts (`2º B`, `Appt 12`, `Top 3`), multi-line blocks and a trailing country line. A postcode and town with no street are masked only next to an address label or a street line. Danish, Swedish and Norwegian street forms are detected and get a generic stand-in. US-style addresses are generated exactly as before.
+- Family-name-first names get stand-ins from the same origin with the same shape: `Nguyen Van An` becomes something like `Kieu Van Phuc`, and `Park Ji-hoon` something like `Hwang Sook-kwan`.
+- Handles do not keep the real initial: `kchen` becomes `sradcliffe` when the same request shows the person's full name (so it matches their stand-in), and otherwise gets a different letter.
+- Name lists are bundled and generated for this project; once exhausted, a syllable generator takes over.
+- Gender-consistent: first names are replaced with first names of the same likely gender (a bundled list of common first names; unknown names get gender-neutral surrogates), so `Priya ... her` stays coherent. A dictionary `gender` column overrides the guess.
+- One identity per person: every alias of a dictionary entry maps onto parts of the same surrogate. `Marcus Delaney` becomes `Ezra Sandoval`, `Delaney` becomes `Sandoval`, and the nickname `Marc` becomes a nickname derived from `Ezra` (for example `Ez`), so the model sees one person.
+- A surrogate is never a word that appears capitalized anywhere in the same request, so a stand-in cannot collide with a real name you are sending.
+
+## Detection layers
+
+Detection is layered, and each layer can only add findings:
+
+1. **Patterns.** Emails, phones, addresses, dates, links and codes; national ID formats checked by their checksum or structure, and ID values after a label in several languages; cards, IBANs (length and mod 97 per country), labelled bank numbers and crypto addresses; vendor API key shapes, `key=value` secrets, auth headers, cookies, private keys, recovery codes, and password-shaped tokens next to a credential word. No model, a few milliseconds for a typical prompt.
+2. **Built-in name detector.** Finds people without a model: a known first name followed by a surname (`John Smith`, `JOHN SMITH`), a known first name on its own, names after labels (`Emergency contact: May Lindenbrook`, `ONCALL: ...`, `From: ... <email>`), after relationship words (`my sister Ottoline`), as chat speakers (`[09:14] ravi:`), and in profile URLs (`/people/abelard-ashdown`). It also handles particles (`Anna van der Berg`; a particle that ends a name is the surname, as in `Ruby John Van`, except `St` and `Ste`, which are read as a street abbreviation and stay as typed, as in `John St`), surname-first forms (`SMITH, John`), initials (`J. Smith`, `John S.`), accents (`José` and `Jose` are the same name) and names inside `first.last@` addresses. Family-name-first names are recognized for common Vietnamese, Chinese and Korean family names (`Nguyen Van An`, `Zhang Wei`, `Kim Min-jun`); family names that are also ordinary words (`Le`, `Do`, `He`, `Park`, `Sun`, `Kim`, `Lee`) need a distinctive given name, a middle marker such as `Van` or `Thi`, or name context, or a sentence that treats them as a person (`Sun Yang will join the call`, `I asked Ma Long to review it`). It also reads attendee-style lists (`Present:`, `Attendees:`, `Cc:`), initialisms of people named in the same text (`LP to send notes` after `Liam Parker` appears in the attendee list), all-caps surname-first names with particles (`CARVALHO DE SOUZA, João Pedro`), and Spanish, French, German, Italian and Portuguese honorifics (`el señor José Luis Ramírez Ortega`). First names inside venue or title names (`The Amber Room`), multi-word places and terms (`Monte Carlo`, `Turing test`) and `City XX` forms are left alone. Code handles count as people where the position makes them a username: `TODO(mwilliams)` and `FIXME(kchen)`, the user prefix of a branch (`git checkout -b jsmith/retry-logic`, `origin/kchen/fix`), `@mwilliams` mentions, `/home/jdoe/` and `/Users/jdoe/` path segments, git trailers (`Reviewed-by: kchen`), branch prefixes after git commands and in prose (`git push origin dlopez/fix-cache`, `PR from kchen/fix-auth`), and a lowercase handle in prose right after a cue word when it has a name shape (`please ask kchen to review`). Branch prefixes and mentions need a name-table match (an initial plus a known surname, or a known first name), so `feature/login`, `@types/node` and `@param` are left alone, and service accounts such as `root`, `ubuntu` and `runner` are skipped; a handle with no recognizable name in it (`@zorgblat`) is missed outside home directories and trailers. A bundled list of a few hundred well-known organizations whose names look like a person (`Morgan Stanley`, `Goldman Sachs`, `Johnson & Johnson`, `Ralph Lauren`) is treated as `org`, and so is a name followed by a corporate word (`Okafor Partners`, `Maria Garcia Holdings`, `Becker & Sons`). A real person who shares one of those names (`Edward Jones`, `Raymond James`) is masked from your dictionary, after a title (`Mr. Edward Jones`), after a relationship word, in a sign-off, after a label such as `Contact:`, or when the text treats the name as a person (`Edward Jones called me`) and nowhere as a company. It uses public-domain name tables (about 9,400 first names and 32,800 surnames from US government data, Wikidata and per-country popular-name lists, see `internal/namedata`). Coverage is best for names written in Latin script and common in Europe and the Americas; it will still miss many others, and nicknames in particular. Names that are also ordinary words (`Will`, `May`, `Grant`, `Faith`) only count in name context. Technology names that are also given names or surnames (`Ruby`, `Julia`, `Jenkins`, `Docker`, and the planet names `Mercury` to `Pluto`) follow the person rules: `Hi Ruby,` masks, `Ruby 3.3 is installed.` keeps, and once the vault knows a person called Ruby, a later lone `Ruby` masks unless strong technical evidence sits right next to it. Assistant names (`Claude`, `ChatGPT`, `Siri`, `Alexa`) are kept when used alone (`Hi Claude,`). Once the vault knows a person with that name, a later lone use masks when the sentence treats it as a person (`Claude wrote most of this module.`), and in a request that names the person in full (`Claude Shannon`) every other bare use masks too, except in a code span or identifier. Turn the layer off with `policy.name_heuristics: false`.
+3. **Your dictionary.** The people, orgs and places you know. The most precise layer.
+4. **Names learned within a request.** Once any layer finds `Hope Valdane` anywhere in a request, every message in that request is re-checked for her other forms: `hope` in a chat line, `HOPE VALDANE`, `hope-valdane`, `hvaldane`.
+5. **NER sidecar (optional).** A model for names, orgs and places nothing else caught. Two are bundled: [GLiNER](../detectors/gliner/README.md) and [OpenAI Privacy Filter](../detectors/privacy-filter/README.md). ALL CAPS runs are sent to the sidecar in title case, because NER models miss shouted names.
+
+False positives are handled with `policy.allow`, a list of terms that must never be masked:
+
+```yaml
+policy:
+  allow: ["Grace Hopper", "Lincoln Center"]
+```
+
+## Dictionary
+
+A CSV (or JSON) of people, orgs and places you know, for example exported from your contacts or mail graph. Columns: `value,type,aliases[,generalize[,gender]]`, aliases separated by `|`. With a header row the columns can come in any order; `gender` is optional (`f`, `m` or `n`).
+
+```csv
+value,type,aliases,generalize,gender
+Jordan Example,person,Jordy|J. Example,,f
+Northwind Clinic,org,,a medical clinic,
+```
+
+For each person, Outworld also matches:
+
+- first names in any case (`Jordan`, `jordan`), last names when capitalized, possessives, and the full name in any case;
+- URL slugs and handles: `jordan.example`, `jordan_example`, `jordan-example`, `jordanexample`, `jexample`, `jordane`, `jordan_e`;
+- single words that are also common English words (`Will`, `May`, `Rose`, `Chase`) only in name context: capitalized and not used as the word (`Will you`, `in May`, `Grant access`), or lowercase right after a greeting (`hey will`), before a verb like `said`, as a chat speaker (`will:`), or alone on a signature line. Inside handles, slugs and emails they always match.
+
+JSON form: `[{"value": "...", "type": "person", "aliases": ["..."], "generalize": "...", "gender": "f"}]`.

@@ -19,7 +19,7 @@ You should get a first answer within a week. Fixes are released as a new version
 - Anything that weakens the vault encryption or lets a crafted request corrupt the vault.
 - Denial of service through inputs that make detection or rehydration much slower than linear.
 
-A value that no detector recognizes (an unusual name, an ID format that is not covered) is a detection gap, not a vulnerability. Those are welcome as ordinary issues; the current list is in the README under Known gaps.
+A value that no detector recognizes (an unusual name, an ID format that is not covered) is a detection gap, not a vulnerability. Those are welcome as ordinary issues; the current list is in [docs/known-gaps.md](docs/known-gaps.md).
 
 ## Supported versions
 

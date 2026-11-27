@@ -120,4 +120,4 @@ Add an `ollama` service (`image: ollama/ollama`) to the Compose file, without pu
 - **Chat endpoints only.** Outworld serves `/v1/chat/completions`, `/v1/completions` and `/v1/models`. Embeddings, image generation, speech and transcription are not proxied. Keep those features on local engines or give them a separate connection, and remember that a separate connection is not masked.
 - **Extra connections bypass Outworld.** Any other OpenAI or Ollama connection added in Admin Settings goes straight to that server. Remove them if every chat must be masked.
 - **Web search and tools run in Open WebUI.** Queries the UI sends to a search engine or tool server do not pass through Outworld.
-- **Detection is best-effort.** Add a dictionary of the people who matter, and read the threat model in the [README](../../README.md).
+- **Detection is best-effort.** Add a dictionary of the people who matter, and read the [threat model](../threat-model.md).

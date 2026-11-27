@@ -138,5 +138,5 @@ export ANTHROPIC_CUSTOM_HEADERS="X-Outworld-Route: passthrough"
 - **Server-side tools see surrogates.** A web search executed by the provider searches for the stand-in name, not the real one.
 - **Images and PDFs are refused on the masked route** with HTTP 422 (`outworld_unsupported_content`) unless you set `policy.allow_images: true`. With that setting they are sent unmasked.
 - **The memo is in memory.** It is lost when the gateway restarts. The next request of a running conversation may then miss the prompt cache once, or have its earlier thinking dropped by Claude Code after the API rejects the old signatures. The conversation continues.
-- **Detection is best-effort.** Unusual names, people described rather than named, and identifiers inside code can slip through. See the threat model in the [README](../../README.md).
+- **Detection is best-effort.** Unusual names, people described rather than named, and identifiers inside code can slip through. See the [threat model](../threat-model.md) and [known gaps](../known-gaps.md).
 - **The provider still sees your code and the substance of your prompts.** Outworld hides who and what is named in them, not what they are about.

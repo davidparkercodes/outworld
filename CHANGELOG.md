@@ -83,7 +83,7 @@ This release also covers the commit made after the 0.2.0 tag on 2026-11-22 (code
 
 ### Known gaps
 
-The full list, by area, is in the README under [Known gaps](README.md#known-gaps). The most important:
+The full list, by area, is in [Known gaps](docs/known-gaps.md). The most important:
 
 - Names in non-Latin scripts are not detected without an NER sidecar.
 - Numbers sent as JSON numbers in the request, including inside tool call arguments, are not inspected (JSON text inside a decoded opaque value is read as text).

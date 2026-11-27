@@ -99,7 +99,7 @@ Recall by how the name is written (Privacy Filter / GLiNER): full name 99% / 99%
 
 False positives: Privacy Filter tagged 57 non-person strings as a person (0.38 per 1,000 characters), mostly company names and fragments of email addresses. GLiNER tagged 312, of which 304 were the literal word "person" in a system prompt; without that one string it made 8 (0.05 per 1,000 characters).
 
-These are sidecar-only numbers on the corpus the built-in detectors were tuned on. Inside the gateway, where the other detectors already catch most full names, the two sidecars end up with similar leak rates and Privacy Filter over-masks more; see the measured results in the top-level README.
+These are sidecar-only numbers on the corpus the built-in detectors were tuned on. Inside the gateway, where the other detectors already catch most full names, the two sidecars end up with similar leak rates and Privacy Filter over-masks more; see the measured results in [docs/accuracy.md](../../docs/accuracy.md).
 
 Things to know:
 
