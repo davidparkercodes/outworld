@@ -7,7 +7,7 @@ What it protects against:
 - The provider (and its logs, retention, training pipelines, breaches) seeing the names, contact details, addresses, exact dates, account numbers, IDs and secrets that Outworld detects.
 - Accidental leaks of values the vault already knows: every outbound payload is re-scanned for known real values and for unmasked detector hits. Anything found is masked in place with its existing surrogate (or a new one) and the payload is re-scanned; a known first name followed by a capitalized word is treated as a full name. Only what still cannot be transformed (for example a value in a JSON key or message `name`) blocks the request. The 422 lists each finding by type, field and position with a fully redacted preview and a hint, and never contains any character of the value ([details](blocked-requests.md)).
 - Mentions split across messages: every text in a request is detected first, so a name that is only recognizable in a later message is also masked in earlier ones.
-- Credentials and one-time codes that Outworld recognizes reaching any cloud model at all (stripped, never restored). Recognition is far from complete here: on the blind corpus about a third of secrets got through, mostly passwords and tokens with no label next to them. Do not rely on Outworld as a secret scanner.
+- Credentials and one-time codes that Outworld recognizes reaching any cloud model at all (stripped, never restored). Recognition is far from complete here: on the blind corpus about one in six secrets got through, mostly passwords and tokens with no label next to them. Do not rely on Outworld as a secret scanner.
 
 What it does **not** do:
 
